@@ -335,8 +335,7 @@ void EGLRenderer::updateScene() {
 }
 
 void EGLRenderer::collectRenderableWindows(Window *window, int x, int y) {
-    if (!window->mapped) return;
-    if (!window->inputOutput) return;
+    if (!window->mapped || !window->inputOutput || window->width <= 1 || window->height <= 1) return;
     
     if (window != windowManager->getRootWindow()) {
         bool viewable = env->CallBooleanMethod(window->attributes, cache->windowAttributesIsEnabled);
