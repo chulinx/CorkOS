@@ -130,6 +130,47 @@ add_custom_command(
     COMMENT "Compiling window_postfx.frag -> window_postfx_frag.h"
 )
 
+# DIS frame generation (optical flow interpolation), ported from WinNative
+# (GPL-3.0-or-later).  The compute shaders are compiled to SPIR-V and then embedded as
+# C arrays, because vkr_dis.c references each shader as <name> and <name>_size and
+# glslangValidator's -x only emits the array.
+set(DIS_DIR ${VULKAN_RENDERER_DIR}/dis)
+set(DIS_SHADERS
+        dis_gradient
+        dis_inverse_search
+        dis_propagate
+        dis_densify
+        dis_interpolate
+        dis_vr_prep
+        dis_vr_d1
+        dis_vr_d2
+        dis_vr_w
+        dis_vr_coef
+        dis_vr_sor
+        dis_vr_add
+        dis_luma_r16
+        dis_luma_r32
+)
+set(DIS_SPV_HEADERS "")
+foreach(DIS_SHADER ${DIS_SHADERS})
+    set(DIS_SPV ${CMAKE_CURRENT_BINARY_DIR}/shaders/${DIS_SHADER}_comp.spv)
+    set(DIS_SPV_H ${CMAKE_CURRENT_BINARY_DIR}/shaders/${DIS_SHADER}_comp.spv.h)
+    add_custom_command(
+            OUTPUT ${DIS_SPV}
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/shaders
+            COMMAND glslangValidator -V -o ${DIS_SPV} ${DIS_DIR}/shaders/${DIS_SHADER}.comp
+            DEPENDS ${DIS_DIR}/shaders/${DIS_SHADER}.comp
+            COMMENT "Compiling ${DIS_SHADER}.comp -> SPIR-V"
+    )
+    add_custom_command(
+            OUTPUT ${DIS_SPV_H}
+            COMMAND python3 ${DIS_DIR}/bin2c.py ${DIS_SPV} ${DIS_SPV_H} ${DIS_SHADER}_comp
+            DEPENDS ${DIS_SPV} ${DIS_DIR}/bin2c.py
+            COMMENT "Embedding ${DIS_SHADER}_comp.spv -> header"
+    )
+    list(APPEND DIS_SPV_HEADERS ${DIS_SPV_H})
+endforeach()
+
 set(VULKAN_CONTEXT_SOURCE ${VULKAN_RENDERER_DIR}/VulkanRendererContext.cpp)
 set(VULKAN_CONTEXT_LEGACY ${CMAKE_CURRENT_BINARY_DIR}/VulkanRendererContext_legacy.cpp)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${VULKAN_CONTEXT_SOURCE})
@@ -215,6 +256,16 @@ include_directories(
         ${VULKAN_RENDERER_DIR}
 )
 
+# The DIS engine and its dispatch table use Android-specific Vulkan types
+# (VkAndroidSurfaceCreateInfoKHR, AHardwareBuffer interop).  Those only appear in
+# vulkan.h when VK_USE_PLATFORM_ANDROID_KHR is set, and CorkOS's own sources do not
+# need it -- so scope the define to just these two files.
+set_source_files_properties(
+        winlator/renderer/vulkan/vk_dispatch.c
+        winlator/renderer/vulkan/dis/vkr_dis.c
+        PROPERTIES COMPILE_DEFINITIONS "VK_USE_PLATFORM_ANDROID_KHR=1"
+)
+
 add_library(vulkan_renderer SHARED
         winlator/renderer/vulkan/vulkan_jni.cpp
         ${VULKAN_CONTEXT_LEGACY}
@@ -231,6 +282,10 @@ add_library(vulkan_renderer SHARED
         ${CMAKE_CURRENT_BINARY_DIR}/window_lanczos_frag.h
         ${CMAKE_CURRENT_BINARY_DIR}/window_stretch_frag.h
         ${CMAKE_CURRENT_BINARY_DIR}/window_postfx_frag.h
+
+        winlator/renderer/vulkan/vk_dispatch.c
+        winlator/renderer/vulkan/dis/vkr_dis.c
+        ${DIS_SPV_HEADERS}
 )
 
 set_target_properties(vulkan_renderer PROPERTIES
