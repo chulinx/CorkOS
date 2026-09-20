@@ -99,12 +99,16 @@ void VulkanRendererContext::recordCmdBuf(VkCommandBuffer cb, uint32_t imgIdx,
     float ox, float oy, float sx, float sy, float cw, float ch,
     short ptrX, short ptrY, short curHotX, short curHotY,
     short curW, short curH, bool curVis,
-    VkRect2D scissorRect)
+    VkRect2D scissorRect,
+    VkFramebuffer targetFB, VkRenderPass targetPass)
 {
     VkCommandBufferBeginInfo bi{};
     bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     if (vk_.BeginCommandBuffer(cb, &bi) != VK_SUCCESS)
         throw std::runtime_error("begin cb");
+    // Default to the swapchain target so the legacy path keeps working unchanged.
+    if (targetFB == VK_NULL_HANDLE) targetFB = swapchainFBs[imgIdx];
+    if (targetPass == VK_NULL_HANDLE) targetPass = renderPass;
 
     ahbTransitions.clear();
     preUpload.clear();
@@ -200,8 +204,8 @@ void VulkanRendererContext::recordCmdBuf(VkCommandBuffer cb, uint32_t imgIdx,
 
     VkRenderPassBeginInfo rpi{};
     rpi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    rpi.renderPass = renderPass;
-    rpi.framebuffer = swapchainFBs[imgIdx];
+    rpi.renderPass = targetPass;
+    rpi.framebuffer = targetFB;
     rpi.renderArea = {{0, 0}, swapchainExt};
     VkClearValue clear = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
     rpi.clearValueCount = 1;

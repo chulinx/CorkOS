@@ -834,10 +834,15 @@ void VulkanRendererContext::recordCmdBuf(VkCommandBuffer cb, uint32_t imgIdx,
     float ox, float oy, float sx, float sy, float cw, float ch,
     short ptrX, short ptrY, short curHotX, short curHotY,
     short curW, short curH, bool curVis,
-    VkRect2D scissorRect)
+    VkRect2D scissorRect,
+    VkFramebuffer targetFB, VkRenderPass targetPass)
 {
     VkCommandBufferBeginInfo bi{}; bi.sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     if (vk_.BeginCommandBuffer(cb,&bi)!=VK_SUCCESS) throw std::runtime_error("begin cb");
+    // Fall back to the swapchain target when the caller did not supply one, so the legacy
+    // path keeps working unchanged.
+    if (targetFB == VK_NULL_HANDLE) targetFB = swapchainFBs[imgIdx];
+    if (targetPass == VK_NULL_HANDLE) targetPass = renderPass;
 
     ahbTransitions.clear(); preUpload.clear(); postUpload.clear();
 
@@ -901,7 +906,7 @@ void VulkanRendererContext::recordCmdBuf(VkCommandBuffer cb, uint32_t imgIdx,
             0, 0, nullptr, 0, nullptr, (uint32_t)postUpload.size(), postUpload.data());
 
     VkRenderPassBeginInfo rpi{}; rpi.sType=VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    rpi.renderPass=renderPass; rpi.framebuffer=swapchainFBs[imgIdx]; rpi.renderArea={{0,0},swapchainExt};
+    rpi.renderPass=targetPass; rpi.framebuffer=targetFB; rpi.renderArea={{0,0},swapchainExt};
     VkClearValue clr={{{0.f,0.f,0.f,1.f}}}; rpi.clearValueCount=1; rpi.pClearValues=&clr;
 
     vk_.CmdBeginRenderPass(cb, &rpi, VK_SUBPASS_CONTENTS_INLINE);
@@ -1134,11 +1139,18 @@ void VulkanRendererContext::renderFrame() {
     if (hasCurUpload && cursorStgP && !cursorPixels.empty())
         memcpy(cursorStgP, cursorPixels.data(), cursorUploadSize);
 
+    // Frame generation composes into an offscreen image so DIS can interpolate from it.  If the
+    // offscreen target cannot be created we silently fall back to drawing into the swapchain.
+    bool fgActive = frameGenEnabled && dis != nullptr
+            && ensureFrameGen(swapchainExt.width, swapchainExt.height);
+
     recordCmdBuf(cmdBufs[currentFrame],imgIdx,frameDraws,
         frameAhbTransitions,framePreUpload,framePostUpload,
         curUpload,hasCurUpload,
         ox,oy,sx,sy,cw,ch,ptrX,ptrY,curHotX,curHotY,curW,curH,curVis,
-        effectiveScissor);
+        effectiveScissor,
+        fgActive ? composeFB : swapchainFBs[imgIdx],
+        fgActive ? composeRenderPass : renderPass);
 
     VkSemaphore wSem[]={imgAvailSems[currentFrame]}, sSem[]={renderDoneSems[currentFrame]};
     VkPipelineStageFlags wStage[]={VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};

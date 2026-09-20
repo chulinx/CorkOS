@@ -463,7 +463,8 @@ public:
         float ox, float oy, float sx, float sy, float cw, float ch,
         short ptrX, short ptrY, short curHotX, short curHotY,
         short curW, short curH, bool curVis,
-        VkRect2D scissorRect);
+        VkRect2D scissorRect,
+        VkFramebuffer targetFB, VkRenderPass targetPass);
     void renderLoop();
     void renderFrame();
 
