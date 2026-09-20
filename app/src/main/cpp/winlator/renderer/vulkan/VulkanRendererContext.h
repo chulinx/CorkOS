@@ -6,6 +6,8 @@
 
 #include "view_transformation.hpp"
 #include "xform.hpp"
+// DIS frame generation (pure C API, extern "C" so it links straight into this C++ TU).
+#include "dis/vkr_dis.h"
 
 struct VkTable {
 
@@ -333,6 +335,30 @@ public:
     std::vector<VkImage>       swapchainImages;
     std::vector<VkImageView>   swapchainViews;
     std::vector<VkFramebuffer> swapchainFBs;
+
+    // --- Frame generation (DIS optical flow) ---------------------------------------------
+    // Inert unless setFrameGenEnabled(true) is called: the renderer keeps drawing straight
+    // into the swapchain by default.  When enabled the scene is composed into an offscreen
+    // image first, then DIS interpolates the extra frames into the swapchain images.
+    bool        frameGenEnabled     = false;
+    bool        frameGenDebugFlow   = false;
+    uint32_t    frameGenFlowMinSide = 180;    // Fast 180 / Balance 252 / Quality 360 px
+    uint32_t    frameGenTargetFps   = 0;      // 0 = follow the panel refresh rate
+    float       frameGenRefreshRate = 60.0f;
+    VkrDis*     dis = nullptr;
+    VkImage        composeImage      = VK_NULL_HANDLE;
+    VkDeviceMemory composeMemory     = VK_NULL_HANDLE;
+    VkImageView    composeView       = VK_NULL_HANDLE;
+    VkFramebuffer  composeFB         = VK_NULL_HANDLE;
+    VkRenderPass   composeRenderPass = VK_NULL_HANDLE;
+    VkExtent2D     composeExt{0, 0};
+
+    void setFrameGenEnabled(bool enabled);
+    void setFrameGenConfig(uint32_t flowMinSide, uint32_t targetFps, float refreshRate);
+    void setFrameGenDebugFlow(bool on);
+    void destroyFrameGenTargets();
+    bool ensureFrameGen(uint32_t width, uint32_t height);
+    void createComposeRenderPass();
 
     VkRenderPass          renderPass  = VK_NULL_HANDLE;
     VkDescriptorSetLayout dsLayout    = VK_NULL_HANDLE;

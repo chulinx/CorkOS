@@ -1493,6 +1493,143 @@ void VulkanRendererContext::cleanupAllAHBCache() {
     ahbImportCache.clear(); windowAhbs.clear();
 }
 
+// ---------------------------------------------------------------------------------------------
+// Frame generation (DIS).  Nothing here runs unless setFrameGenEnabled(true) is called; the
+// renderer keeps composing straight into the swapchain image by default.
+// ---------------------------------------------------------------------------------------------
+
+void VulkanRendererContext::createComposeRenderPass() {
+    if (composeRenderPass != VK_NULL_HANDLE) return;
+    VkAttachmentDescription att{};
+    att.format = swapchainFmt;
+    att.samples = VK_SAMPLE_COUNT_1_BIT;
+    att.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    att.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    att.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    att.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    att.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    // The composed frame is sampled by the DIS passes instead of being presented directly, so
+    // it must end up in a shader-readable layout.
+    att.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    VkAttachmentReference ref{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+    VkSubpassDescription sub{};
+    sub.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    sub.colorAttachmentCount = 1;
+    sub.pColorAttachments = &ref;
+    VkSubpassDependency dep{};
+    dep.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dep.dstSubpass = 0;
+    dep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dep.srcAccessMask = 0;
+    dep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    VkRenderPassCreateInfo ci{};
+    ci.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    ci.attachmentCount = 1;
+    ci.pAttachments = &att;
+    ci.subpassCount = 1;
+    ci.pSubpasses = &sub;
+    ci.dependencyCount = 1;
+    ci.pDependencies = &dep;
+    if (vk_.CreateRenderPass(device, &ci, nullptr, &composeRenderPass) != VK_SUCCESS)
+        throw std::runtime_error("compose renderpass");
+}
+
+void VulkanRendererContext::destroyFrameGenTargets() {
+    if (composeFB != VK_NULL_HANDLE) { vk_.DestroyFramebuffer(device, composeFB, nullptr); composeFB = VK_NULL_HANDLE; }
+    if (composeView != VK_NULL_HANDLE) { vk_.DestroyImageView(device, composeView, nullptr); composeView = VK_NULL_HANDLE; }
+    if (composeImage != VK_NULL_HANDLE) { vk_.DestroyImage(device, composeImage, nullptr); composeImage = VK_NULL_HANDLE; }
+    if (composeMemory != VK_NULL_HANDLE) { vk_.FreeMemory(device, composeMemory, nullptr); composeMemory = VK_NULL_HANDLE; }
+    composeExt = {0, 0};
+}
+
+bool VulkanRendererContext::ensureFrameGen(uint32_t width, uint32_t height) {
+    if (device == VK_NULL_HANDLE || physicalDevice == VK_NULL_HANDLE) return false;
+    if (width == 0 || height == 0) return false;
+    if (composeImage != VK_NULL_HANDLE && composeExt.width == width && composeExt.height == height)
+        return true;
+
+    destroyFrameGenTargets();
+    createComposeRenderPass();
+
+    VkImageCreateInfo ii{};
+    ii.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    ii.imageType = VK_IMAGE_TYPE_2D;
+    ii.format = swapchainFmt;
+    ii.extent = {width, height, 1};
+    ii.mipLevels = 1;
+    ii.arrayLayers = 1;
+    ii.samples = VK_SAMPLE_COUNT_1_BIT;
+    ii.tiling = VK_IMAGE_TILING_OPTIMAL;
+    ii.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
+             | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    ii.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    if (vk_.CreateImage(device, &ii, nullptr, &composeImage) != VK_SUCCESS) { destroyFrameGenTargets(); return false; }
+
+    VkMemoryRequirements req{};
+    vk_.GetImageMemoryRequirements(device, composeImage, &req);
+    VkMemoryAllocateInfo ai{};
+    ai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    ai.allocationSize = req.size;
+    ai.memoryTypeIndex = findMemType(req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if (ai.memoryTypeIndex == UINT32_MAX
+            || vk_.AllocateMemory(device, &ai, nullptr, &composeMemory) != VK_SUCCESS) {
+        destroyFrameGenTargets();
+        return false;
+    }
+    vk_.BindImageMemory(device, composeImage, composeMemory, 0);
+
+    VkImageViewCreateInfo vi{};
+    vi.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    vi.image = composeImage;
+    vi.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    vi.format = swapchainFmt;
+    vi.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+    if (vk_.CreateImageView(device, &vi, nullptr, &composeView) != VK_SUCCESS) { destroyFrameGenTargets(); return false; }
+
+    VkImageView attachments[] = {composeView};
+    VkFramebufferCreateInfo fi{};
+    fi.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    fi.renderPass = composeRenderPass;
+    fi.attachmentCount = 1;
+    fi.pAttachments = attachments;
+    fi.width = width;
+    fi.height = height;
+    fi.layers = 1;
+    if (vk_.CreateFramebuffer(device, &fi, nullptr, &composeFB) != VK_SUCCESS) { destroyFrameGenTargets(); return false; }
+
+    composeExt = {width, height};
+    return true;
+}
+
+void VulkanRendererContext::setFrameGenEnabled(bool enabled) {
+    if (frameGenEnabled == enabled) return;
+    frameGenEnabled = enabled;
+    if (!enabled) {
+        if (dis) { vkr_dis_destroy(dis); dis = nullptr; }
+        destroyFrameGenTargets();
+    } else if (dis == nullptr && device != VK_NULL_HANDLE) {
+        dis = vkr_dis_create(device, physicalDevice);
+        if (!dis) { frameGenEnabled = false; return; }
+        vkr_dis_configure(dis, frameGenFlowMinSide, frameGenTargetFps, frameGenRefreshRate);
+        vkr_dis_set_debug_flow(dis, frameGenDebugFlow);
+    }
+    fbResized.store(true);
+    dirtyCV.notify_one();
+}
+
+void VulkanRendererContext::setFrameGenConfig(uint32_t flowMinSide, uint32_t targetFps, float refreshRate) {
+    frameGenFlowMinSide = flowMinSide;
+    frameGenTargetFps = targetFps;
+    frameGenRefreshRate = refreshRate;
+    if (dis) vkr_dis_configure(dis, flowMinSide, targetFps, refreshRate);
+}
+
+void VulkanRendererContext::setFrameGenDebugFlow(bool on) {
+    frameGenDebugFlow = on;
+    if (dis) vkr_dis_set_debug_flow(dis, on);
+}
+
 void VulkanRendererContext::dumpRendererInfo() {
     VkPhysicalDeviceProperties props{};
     vk_.GetPhysicalDeviceProperties(physicalDevice,&props);
