@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -43,6 +44,7 @@ import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Photo
 import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.ScreenRotation
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Sort
@@ -140,30 +142,29 @@ internal fun LibraryRoot(
     val activity = LocalContext.current as? MainActivity
 
     DisposableEffect(activity, landscape) {
+        // Landscape hides the status bar to reclaim vertical space for the cover carousel.
+        activity?.setStatusBarVisible(!landscape)
         if (landscape) {
             activity?.setBottomNavigationVisible(false)
             activity?.setMainToolbarVisible(false)
         }
-        onDispose { }
+        onDispose { activity?.setStatusBarVisible(true) }
     }
 
-    if (landscape && visible.isNotEmpty() && !grid) {
+    // Landscape is the cover carousel only: one large cover at a time, swiped sideways. The
+    // two-column cover grid no longer exists in landscape (it remains the portrait layout).
+    if (landscape && visible.isNotEmpty()) {
         var menu by remember { mutableStateOf<LibraryItem?>(null) }
         LandscapePagerCore(
             items = visible,
             selectedShortcutPath = selectedShortcutPath,
             callbacks = cb,
             header = {
-                LibraryLandscapeHeader(
-                    activity = activity,
-                    grid = grid,
-                    onArtwork = true,
-                    onGridViewChanged = cb::onGridViewChanged
-                )
-                Spacer(Modifier.height(7.dp))
+                LibraryLandscapeHeader(activity = activity)
+                Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                     LibraryFilter.values().forEach { option ->
-                        LibraryFilterChip(option.name, option == filter) { filterName = option.name }
+                        LibraryFilterChip(filterLabel(option), option == filter) { filterName = option.name }
                     }
                 }
             },
@@ -184,13 +185,8 @@ internal fun LibraryRoot(
             .padding(horizontal = 14.dp)
     ) {
         if (landscape) {
-            LibraryLandscapeHeader(
-                activity = activity,
-                grid = grid,
-                onArtwork = false,
-                onGridViewChanged = cb::onGridViewChanged
-            )
-            Spacer(Modifier.height(7.dp))
+            LibraryLandscapeHeader(activity = activity)
+            Spacer(Modifier.height(4.dp))
         }
 
         val tabs = listOf(
@@ -206,23 +202,23 @@ internal fun LibraryRoot(
             }
         )
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(4.dp))
 
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            SourceCard(
-                icon = Icons.Outlined.FileDownload,
-                label = stringResource(R.string.import_games),
-                highlighted = items.isEmpty(),
-                modifier = Modifier.fillMaxWidth()
-            ) { cb.onOpenImport() }
+        // Reached in portrait, and in landscape only when the library is empty (the carousel needs
+        // at least one game). Landscape keeps the chrome but drops the list/grid toggle.
+        if (!landscape) {
+            LibraryImportCard(items.isEmpty()) { cb.onOpenImport() }
         }
-
         LibrarySectionHeader(
             count = visible.size,
             grid = grid,
             sort = sort,
             searchOpen = searchOpen,
             activity = activity,
+            showViewToggle = !landscape,
+            // Portrait offers a one-tap shortcut into the landscape cover carousel.
+            showLandscapeShortcut = !landscape,
+            onSwitchLandscape = { activity?.toggleHorizontalMode() },
             onToggleSearch = {
                 searchOpen = !searchOpen
                 if (!searchOpen) queryState.value = ""
@@ -291,6 +287,9 @@ private fun LibrarySectionHeader(
     sort: LibrarySort,
     searchOpen: Boolean,
     activity: MainActivity?,
+    showViewToggle: Boolean = true,
+    showLandscapeShortcut: Boolean = false,
+    onSwitchLandscape: () -> Unit = {},
     onToggleSearch: () -> Unit,
     onSortSelected: (LibrarySort) -> Unit,
     onGridViewChanged: (Boolean) -> Unit
@@ -308,7 +307,7 @@ private fun LibrarySectionHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 18.dp, bottom = 10.dp),
+            .padding(top = 2.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
@@ -328,7 +327,7 @@ private fun LibrarySectionHeader(
             icon = if (searchOpen) Icons.Outlined.Close else Icons.Outlined.Search,
             contentDescription = stringResource(R.string.search_games),
             selected = searchOpen,
-            size = 34.dp,
+            size = 30.dp,
             onClick = onToggleSearch
         )
         Spacer(Modifier.width(6.dp))
@@ -389,15 +388,26 @@ private fun LibrarySectionHeader(
             }
         }
 
-        Spacer(Modifier.width(6.dp))
+        if (showViewToggle) {
+            Spacer(Modifier.width(6.dp))
+            CircularIconButton(
+                icon = if (grid) Icons.Outlined.ViewList else Icons.Outlined.GridView,
+                contentDescription = stringResource(
+                    if (grid) R.string.switch_to_list else R.string.switch_to_grid
+                ),
+                size = 30.dp
+            ) { onGridViewChanged(!grid) }
+        }
 
-        CircularIconButton(
-            icon = if (grid) Icons.Outlined.ViewList else Icons.Outlined.GridView,
-            contentDescription = stringResource(
-                if (grid) R.string.switch_to_list else R.string.switch_to_grid
-            ),
-            size = 34.dp
-        ) { onGridViewChanged(!grid) }
+        if (showLandscapeShortcut) {
+            Spacer(Modifier.width(6.dp))
+            CircularIconButton(
+                icon = Icons.Outlined.ScreenRotation,
+                contentDescription = stringResource(R.string.library_switch_landscape),
+                size = 30.dp,
+                onClick = onSwitchLandscape
+            )
+        }
     }
 }
 
@@ -406,6 +416,25 @@ private fun sortLabel(sort: LibrarySort): String = when (sort) {
     LibrarySort.Recent -> stringResource(R.string.sort_recent)
     LibrarySort.Alpha -> stringResource(R.string.sort_alpha)
     LibrarySort.Playtime -> stringResource(R.string.sort_playtime)
+}
+
+@Composable
+private fun LibraryImportCard(
+    highlighted: Boolean,
+    widthFraction: Float = 1f,
+    modifier: Modifier = Modifier,
+    onImport: () -> Unit
+) {
+    // The fraction must live on the tile itself: a child with fillMaxWidth() resolves against the
+    // incoming max constraint, so constraining the wrapping Row instead would not shrink the card.
+    Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        SourceCard(
+            icon = Icons.Outlined.FileDownload,
+            label = stringResource(R.string.import_games),
+            highlighted = highlighted,
+            modifier = Modifier.fillMaxWidth(widthFraction)
+        ) { onImport() }
+    }
 }
 
 @Composable
@@ -465,29 +494,32 @@ private fun LibrarySearchField(
 }
 
 @Composable
-private fun LibraryLandscapeHeader(
-    activity: MainActivity?,
-    grid: Boolean,
-    onArtwork: Boolean,
-    onGridViewChanged: (Boolean) -> Unit
-) {
+private fun LibraryLandscapeHeader(activity: MainActivity?) {
     var moreOpen by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(
             stringResource(R.string.library),
-            color = if (onArtwork) Color.White else MaterialTheme.colorScheme.onBackground,
-            style = MaterialTheme.typography.headlineSmall,
+            // The header sits on top of the cover carousel's artwork, so it always reads white.
+            color = Color.White,
+            style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Medium
         )
         Spacer(Modifier.weight(1f))
-        LibraryTopIcon(if (grid) Icons.Outlined.ViewList else Icons.Outlined.GridView, false) {
-            onGridViewChanged(!grid)
+        LibraryTopIcon(Icons.Outlined.Add, false, stringResource(R.string.import_games)) {
+            activity?.navigateToSubDestination(R.id.main_menu_file_manager)
         }
-        LibraryTopIcon(Icons.Outlined.Add, false) { activity?.navigateToSubDestination(R.id.main_menu_file_manager) }
-        LibraryTopIcon(Icons.Outlined.Home, true) {}
+        LibraryTopIcon(Icons.Outlined.Home, true, stringResource(R.string.library)) {}
         LibraryTopIcon(Icons.Outlined.Person, false) { activity?.navigateToMainDestination(R.id.main_menu_profile) }
+        // One-tap shortcut back to portrait, mirroring the portrait -> landscape button.
+        LibraryTopIcon(
+            Icons.Outlined.ScreenRotation,
+            false,
+            stringResource(R.string.library_switch_portrait)
+        ) { activity?.toggleVerticalMode() }
         Box {
-            LibraryTopIcon(Icons.Outlined.MoreVert, false) { moreOpen = true }
+            LibraryTopIcon(Icons.Outlined.MoreVert, false, stringResource(R.string.action_more_options)) {
+                moreOpen = true
+            }
             LibraryOrientationMenu(
                 expanded = moreOpen,
                 onDismiss = { moreOpen = false },
@@ -538,22 +570,34 @@ private fun OrientationToggleMenuItem(label: String, checked: Boolean, onClick: 
 }
 
 @Composable
-private fun LibraryTopIcon(icon: ImageVector, selected: Boolean, click: () -> Unit) {
+private fun LibraryTopIcon(
+    icon: ImageVector,
+    selected: Boolean,
+    description: String? = null,
+    click: () -> Unit
+) {
     val whiteTheme = MaterialTheme.colorScheme.background.luminance() > .65f
     val background = if (whiteTheme) Color.Black.copy(if (selected) .90f else .78f)
     else if (selected) Color.White.copy(.16f) else Color.Transparent
     val content = if (whiteTheme) Color.White else Color.White.copy(if (selected) 1f else .68f)
     Surface(
         onClick = click,
-        modifier = Modifier.padding(horizontal = 3.dp),
-        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.padding(horizontal = 2.dp),
+        shape = RoundedCornerShape(10.dp),
         color = background,
         contentColor = content
     ) {
-        Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) {
-            Icon(icon, null, modifier = Modifier.size(23.dp))
+        Box(Modifier.size(34.dp), contentAlignment = Alignment.Center) {
+            Icon(icon, description, modifier = Modifier.size(19.dp))
         }
     }
+}
+
+@Composable
+private fun filterLabel(filter: LibraryFilter): String = when (filter) {
+    LibraryFilter.All -> stringResource(R.string.all_games)
+    LibraryFilter.Favorites -> stringResource(R.string.favorites)
+    LibraryFilter.Recent -> stringResource(R.string.sort_recent)
 }
 
 @Composable
@@ -561,10 +605,15 @@ private fun LibraryFilterChip(label: String, selected: Boolean, click: () -> Uni
     Surface(
         onClick = click,
         shape = RoundedCornerShape(10.dp),
-        color = if (selected) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        color = if (selected) Color.White.copy(.22f) else Color.Transparent,
+        border = BorderStroke(1.dp, Color.White.copy(if (selected) .70f else .34f))
     ) {
-        Text(label, Modifier.padding(horizontal = 15.dp, vertical = 8.dp), style = MaterialTheme.typography.labelLarge)
+        Text(
+            label,
+            Modifier.padding(horizontal = 15.dp, vertical = 8.dp),
+            style = MaterialTheme.typography.labelLarge,
+            color = Color.White
+        )
     }
 }
 

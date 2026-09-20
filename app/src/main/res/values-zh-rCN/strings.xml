@@ -707,6 +707,8 @@
     <string name="search_games">搜索游戏</string>
     <string name="switch_to_list">切换到列表</string>
     <string name="switch_to_grid">切换到网格</string>
+    <string name="library_switch_landscape">切换到横屏</string>
+    <string name="library_switch_portrait">切换到竖屏</string>
     <string name="favorites">收藏</string>
     <string name="all_games">全部</string>
 

@@ -60,8 +60,13 @@ fun applySystemBars(activity: Activity?) {
         }
     }
 
+    // Respect a page that deliberately hid the status bar (the landscape library carousel);
+    // otherwise this helper would immediately bring it back.
+    val hideStatusBar = (activity as? MainActivity)?.isStatusBarHidden == true
     WindowInsetsControllerCompat(window, window.decorView).apply {
-        show(WindowInsetsCompat.Type.systemBars())
+        if (hideStatusBar) hide(WindowInsetsCompat.Type.statusBars())
+        else show(WindowInsetsCompat.Type.statusBars())
+        show(WindowInsetsCompat.Type.navigationBars())
         systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
     }
 }

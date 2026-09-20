@@ -114,7 +114,12 @@ internal fun LandscapePagerCore(
         PagerImage(item.bannerPath ?: item.coverPath, item.fallbackIcon, Modifier.fillMaxSize())
         Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color.Black.copy(.84f), Color.Black.copy(.48f), Color.Black.copy(.20f)))))
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(.18f), Color.Transparent, Color.Black.copy(.72f)))))
-        Column(Modifier.fillMaxSize().padding(horizontal = 26.dp, vertical = 12.dp)) {
+        // Minimal top inset: the status bar is hidden in landscape, so the title can sit near the edge.
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(start = 26.dp, end = 26.dp, top = 2.dp, bottom = 12.dp)
+        ) {
             header()
             Spacer(Modifier.size(9.dp))
             Row(Modifier.fillMaxWidth().weight(1f), verticalAlignment = Alignment.CenterVertically) {

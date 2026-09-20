@@ -37,6 +37,8 @@ import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.GravityCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
@@ -504,12 +506,34 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         onNavigationItemSelected(destination);
     }
 
+    /** Landscape library pages hide the status bar to reclaim vertical space. */
+    private boolean statusBarHidden = false;
+
+    /**
+     * Lets a page hide the status bar (landscape library) or restore it. The navigation bar stays
+     * visible either way so the user can always leave the app.
+     */
+    public void setStatusBarVisible(boolean visible) {
+        if (statusBarHidden == !visible) return;
+        statusBarHidden = !visible;
+        showSystemBars();
+    }
+
+    /** Pages that call {@code applySystemBars()} must not re-show a deliberately hidden status bar. */
+    public boolean isStatusBarHidden() {
+        return statusBarHidden;
+    }
+
     /**
      * The main UI keeps the system bars visible so the status bar (clock / battery / notifications)
      * stays readable. In-game screens use {@code AppThemeFullscreen} and stay immersive instead.
      */
     private void showSystemBars() {
-        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+        WindowInsetsControllerCompat controller =
+                new WindowInsetsControllerCompat(getWindow(), getWindow().getDecorView());
+        if (statusBarHidden) controller.hide(WindowInsetsCompat.Type.statusBars());
+        else controller.show(WindowInsetsCompat.Type.statusBars());
+        controller.show(WindowInsetsCompat.Type.navigationBars());
     }
 
     @Override

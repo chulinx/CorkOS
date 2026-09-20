@@ -287,7 +287,7 @@ fun TextTabRow(
             Column(
                 modifier = Modifier
                     .clickable { onSelected(index) }
-                    .padding(end = 24.dp, top = 12.dp),
+                    .padding(end = 18.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
@@ -296,7 +296,7 @@ fun TextTabRow(
                     color = if (selected) MaterialTheme.colorScheme.onBackground
                     else MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(3.dp))
                 Box(
                     Modifier
                         .width(22.dp)
@@ -306,7 +306,7 @@ fun TextTabRow(
                             RoundedCornerShape(1.dp)
                         )
                 )
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(3.dp))
             }
         }
     }

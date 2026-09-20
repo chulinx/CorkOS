@@ -712,6 +712,8 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="search_games">Search games</string>
     <string name="switch_to_list">Switch to list</string>
     <string name="switch_to_grid">Switch to grid</string>
+    <string name="library_switch_landscape">Switch to landscape</string>
+    <string name="library_switch_portrait">Switch to portrait</string>
     <string name="favorites">Favorites</string>
     <string name="all_games">All</string>
 
