@@ -22,7 +22,7 @@ object ShortcutSettingsComposeDialog {
             setBackgroundDrawable(ColorDrawable(android.graphics.Color.BLACK))
             decorView.setPadding(0, 0, 0, 0)
             clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-            WindowCompat.setDecorFitsSystemWindows(this, false)
+            WindowCompat.setDecorFitsSystemWindows(this, true)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 attributes = attributes.apply {
                     layoutInDisplayCutoutMode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
@@ -30,7 +30,7 @@ object ShortcutSettingsComposeDialog {
                     else WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
                 }
             }
-            decorView.systemUiVisibility = immersiveUiFlagsV2()
+            decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
         }
         dialog.setContentView(ComposeView(fragment.requireContext()).apply {
             setContent { WinZTheme { ShortcutEditorV2(fragment, shortcut, dialog::dismiss) } }
@@ -39,7 +39,3 @@ object ShortcutSettingsComposeDialog {
     }
 }
 
-private fun immersiveUiFlagsV2() = View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
-        View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
-        View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
-        View.SYSTEM_UI_FLAG_LAYOUT_STABLE

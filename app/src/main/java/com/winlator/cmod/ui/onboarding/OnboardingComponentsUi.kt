@@ -44,9 +44,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.winlator.cmod.R
 import com.winlator.cmod.core.ProtonPackageManager
 
 private val bundledRuntimeId = "bundled:${ProtonPackageManager.DEFAULT_IDENTIFIER}"
@@ -172,7 +174,7 @@ internal fun OnboardingComponentsScreen(
                 horizontalArrangement = Arrangement.spacedBy(18.dp)
             ) {
                 Column(Modifier.weight(.9f).fillMaxHeight()) {
-                    Text("Choose components", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.onboarding_choose_components), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                     Text(
                         if (managerMode) "Install and manage runtime versions."
                         else "Install a Wine or Proton layer before continuing.",
@@ -189,7 +191,7 @@ internal fun OnboardingComponentsScreen(
                     if (category == "AdrenoTools") {
                         Spacer(Modifier.height(10.dp))
                         OutlinedButton(onClick = { cb.onBrowseDriver() }, modifier = Modifier.fillMaxWidth()) {
-                            Text("Install local driver")
+                            Text(stringResource(R.string.onboarding_install_local_driver))
                         }
                     }
                     if (showBundled) {
@@ -209,7 +211,7 @@ internal fun OnboardingComponentsScreen(
                         Spacer(Modifier.height(8.dp))
                         Text(
                             if (!ready.value) "Wait for $bundledRuntimeName to finish installing, or install another Wine/Proton version."
-                            else "Install at least one Wine or Proton version to continue.",
+                            else stringResource(R.string.onboarding_install_wine_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -232,7 +234,7 @@ internal fun OnboardingComponentsScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 item {
-                    Text("Choose components", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.onboarding_choose_components), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
                     Text(
                         if (managerMode) "Install and manage runtime versions."
                         else "Install as many versions as you want. At least one Wine or Proton is required.",
@@ -248,7 +250,7 @@ internal fun OnboardingComponentsScreen(
                     CategorySelector(category) { category = it }
                     if (category == "AdrenoTools") {
                         Spacer(Modifier.height(8.dp))
-                        OutlinedButton(onClick = { cb.onBrowseDriver() }) { Text("Install local driver") }
+                        OutlinedButton(onClick = { cb.onBrowseDriver() }) { Text(stringResource(R.string.onboarding_install_local_driver)) }
                     }
                     if (showBundled) {
                         Spacer(Modifier.height(10.dp))
@@ -279,7 +281,7 @@ internal fun OnboardingComponentsScreen(
                     item {
                         Text(
                             if (!ready.value) "Continue unlocks when $bundledRuntimeName finishes installing or another Wine/Proton layer is installed."
-                            else "Install at least one Wine or Proton version to continue.",
+                            else stringResource(R.string.onboarding_install_wine_hint),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -292,7 +294,7 @@ internal fun OnboardingComponentsScreen(
             next = onContinue,
             landscape = landscape,
             nextEnabled = managerMode || hasInstalledRuntime,
-            nextLabel = if (managerMode) "Done" else "Continue"
+            nextLabel = if (managerMode) stringResource(R.string.action_done) else "Continue"
         )
     }
 }
@@ -312,7 +314,7 @@ private fun ComponentList(
         else if (list.isEmpty()) item {
             Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface) {
                 Text(
-                    "No components available in this category.",
+                    stringResource(R.string.onboarding_no_components),
                     Modifier.padding(16.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -416,12 +418,12 @@ private fun CoreComponentCard(
                 installed -> OutlinedButton(onClick = onRemove, enabled = !locked && !inUse) {
                     Icon(Icons.Outlined.DeleteOutline, null)
                     Spacer(Modifier.width(5.dp))
-                    Text(if (inUse) "In use" else "Delete")
+                    Text(if (inUse) "In use" else stringResource(R.string.action_delete))
                 }
                 else -> OutlinedButton(onClick = onInstall, enabled = !locked) {
                     Icon(Icons.Outlined.Download, null)
                     Spacer(Modifier.width(5.dp))
-                    Text("Install")
+                    Text(stringResource(R.string.install))
                 }
             }
         }
@@ -467,10 +469,10 @@ private fun ComponentCard(
                     OutlinedButton(onClick = { cb.onRemove(item.id) }, enabled = !locked && !item.inUse) {
                         Icon(Icons.Outlined.DeleteOutline, null)
                         Spacer(Modifier.width(5.dp))
-                        Text(if (item.inUse) "In use" else "Delete")
+                        Text(if (item.inUse) "In use" else stringResource(R.string.action_delete))
                     }
                 } else if (!item.installed) {
-                    OutlinedButton(onClick = { cb.onInstall(item.id) }, enabled = !locked) { Text("Download") }
+                    OutlinedButton(onClick = { cb.onInstall(item.id) }, enabled = !locked) { Text(stringResource(R.string.action_download)) }
                 } else Icon(Icons.Outlined.Check, null)
             }
             if (busy) {
@@ -501,7 +503,7 @@ private fun InstallProgressCard(label: String?, progress: Int) {
                 Icon(Icons.Outlined.InsertDriveFile, null, modifier = Modifier.size(28.dp))
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Component installation", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.onboarding_component_installation), fontWeight = FontWeight.SemiBold)
                     Text(
                         if (progress >= 0) "${label ?: "Installing"} • ${progress}%"
                         else label ?: "Installing component…",
@@ -532,7 +534,7 @@ private fun LoadingCard() {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 3.dp)
             Spacer(Modifier.width(12.dp))
-            Text("Loading component catalog…")
+            Text(stringResource(R.string.onboarding_loading_catalog))
         }
     }
 }
@@ -560,7 +562,7 @@ private fun ComponentsFooter(
                 onClick = back,
                 modifier = Modifier.weight(1f).height(48.dp),
                 shape = RoundedCornerShape(12.dp)
-            ) { Text("Back") }
+            ) { Text(stringResource(R.string.action_back)) }
             Button(
                 onClick = next,
                 enabled = nextEnabled,

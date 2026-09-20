@@ -10,6 +10,8 @@
         <item name="android:windowDisablePreview">true</item>
         <item name="android:statusBarColor">#000000</item>
         <item name="android:navigationBarColor">#000000</item>
+        <!-- App-wide typeface: MiSans (SIL OFL) — matches the reference "盖世游戏" face. -->
+        <item name="android:fontFamily">@font/misans_vf</item>
         <item name="android:textViewStyle">@style/TextView</item>
         <item name="android:checkboxStyle">@style/CheckBox</item>
         <item name="android:listPopupWindowStyle">@style/ListPopupWindow</item>
@@ -30,6 +32,8 @@
         <item name="android:windowDisablePreview">true</item>
         <item name="android:statusBarColor">#000000</item>
         <item name="android:navigationBarColor">#000000</item>
+        <!-- App-wide typeface: MiSans (SIL OFL) — matches the reference "盖世游戏" face. -->
+        <item name="android:fontFamily">@font/misans_vf</item>
         <item name="android:textViewStyle">@style/TextView.Dark</item>
         <item name="android:checkboxStyle">@style/CheckBox.Dark</item>
         <item name="android:listPopupWindowStyle">@style/ListPopupWindow.Dark</item>
@@ -774,7 +778,7 @@
     <style name="GlassToolbarTitle" parent="@style/TextAppearance.AppCompat.Title">
         <item name="android:textColor">@color/ui_text_primary</item>
         <item name="android:textSize">20sp</item>
-        <item name="android:fontFamily">sans</item>
+        <item name="android:fontFamily">@font/misans_vf</item>
         <item name="android:textStyle">normal</item>
     </style>
 </resources>

@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -59,6 +60,7 @@ import com.winlator.cmod.core.ProtonPackageManager
 import com.winlator.cmod.core.WineInfo
 import com.winlator.cmod.core.WineRuntimeGuard
 import com.winlator.cmod.core.WineThemeManager
+import com.winlator.cmod.ui.theme.LocalWinlatorAccent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -224,7 +226,7 @@ internal suspend fun loadSettingsCatalog(
     }
 
     val adreno = AdrenotoolsManager(context)
-    val rendererDrivers = linkedMapOf("system" to "System")
+    val rendererDrivers = linkedMapOf("system" to context.getString(R.string.system))
     val driverOptions = linkedMapOf<String, DriverOption>()
 
     context.resources.getStringArray(R.array.wrapper_graphics_driver_version_entries).forEach { version ->
@@ -401,9 +403,8 @@ private fun settingChoiceSelected(label: String, selected: String): String =
 internal fun SettingsCard(content: @Composable () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .72f))
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface
     ) {
         Column { content() }
     }
@@ -435,14 +436,14 @@ private fun WallpaperPreview() {
         if (bitmap != null) {
             Image(
                 bitmap = bitmap.asImageBitmap(),
-                contentDescription = "Wallpaper preview",
+                contentDescription = stringResource(R.string.wallpaper_preview),
                 modifier = Modifier.fillMaxWidth().height(132.dp).clip(RoundedCornerShape(12.dp)),
                 contentScale = ContentScale.Crop
             )
         } else {
             Image(
                 painter = painterResource(R.drawable.wallpaper),
-                contentDescription = "Wallpaper preview",
+                contentDescription = stringResource(R.string.wallpaper_preview),
                 modifier = Modifier.fillMaxWidth().height(132.dp).clip(RoundedCornerShape(12.dp)),
                 contentScale = ContentScale.Crop
             )
@@ -623,7 +624,7 @@ internal fun SettingInstallChoice(
                     text = {
                         Column {
                             Text(value, color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (available) 1f else .52f))
-                            if (!available) Text(if (busy) "Downloading…" else "Download", style = MaterialTheme.typography.labelSmall)
+                            if (!available) Text(if (busy) "Downloading…" else stringResource(R.string.action_download), style = MaterialTheme.typography.labelSmall)
                         }
                     },
                     trailingIcon = {
@@ -685,7 +686,7 @@ internal fun SettingDriverChoice(
                     text = {
                         Column {
                             Text(option.label, color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (option.installed) 1f else .52f))
-                            if (!option.installed) Text(if (busy) "Downloading…" else "Download", style = MaterialTheme.typography.labelSmall)
+                            if (!option.installed) Text(if (busy) "Downloading…" else stringResource(R.string.action_download), style = MaterialTheme.typography.labelSmall)
                         }
                     },
                     trailingIcon = {
@@ -753,18 +754,23 @@ internal fun CpuSelectorRow(
             horizontalArrangement = Arrangement.spacedBy(7.dp)
         ) {
             items(selected.indices.toList(), key = { it }) { index ->
+                val on = selected[index]
+                val accent = LocalWinlatorAccent.current
                 Surface(
-                    onClick = { onToggle(index, !selected[index]) },
+                    onClick = { onToggle(index, !on) },
                     shape = RoundedCornerShape(9.dp),
-                    color = if (selected[index]) Color.White else Color.Transparent,
-                    contentColor = if (selected[index]) Color.Black else MaterialTheme.colorScheme.onSurface,
-                    border = BorderStroke(1.dp, if (selected[index]) Color.White else MaterialTheme.colorScheme.outlineVariant)
+                    color = if (on) accent else Color.Transparent,
+                    contentColor = if (on) Color.White else MaterialTheme.colorScheme.onSurface,
+                    border = BorderStroke(
+                        1.dp,
+                        if (on) accent else MaterialTheme.colorScheme.outlineVariant
+                    )
                 ) {
                     Text(
                         "CPU$index",
                         modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
-                        color = if (selected[index]) Color.Black else MaterialTheme.colorScheme.onSurface,
-                        fontWeight = if (selected[index]) FontWeight.SemiBold else FontWeight.Normal
+                        color = if (on) Color.White else MaterialTheme.colorScheme.onSurface,
+                        fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal
                     )
                 }
             }

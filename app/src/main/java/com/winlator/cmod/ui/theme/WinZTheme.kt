@@ -7,6 +7,7 @@ import android.content.ContextWrapper
 import android.content.res.ColorStateList
 import android.view.View
 import androidx.appcompat.widget.Toolbar
+import androidx.annotation.StringRes
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
@@ -16,14 +17,17 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.AbstractComposeView
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -40,15 +44,15 @@ import com.winlator.cmod.R
 
 enum class WinlatorThemeType(
     val id: String,
-    val displayName: String,
-    val description: String
+    @StringRes val nameRes: Int,
+    @StringRes val descriptionRes: Int
 ) {
-    WHITE("white", "White", "Bright surfaces with dark text"),
-    BLACK("black", "Black", "Balanced dark theme · Default"),
-    AMOLED("amoled", "AMOLED", "Pure black background for OLED displays"),
-    BLUE("blue", "Blue", "Dark interface with cool blue accents"),
-    RED("red", "Red", "Dark interface with warm red accents"),
-    PURPLE("purple", "Purple", "Dark interface with rich purple accents");
+    WHITE("white", R.string.theme_white, R.string.theme_white_desc),
+    BLACK("black", R.string.theme_black, R.string.theme_black_desc),
+    AMOLED("amoled", R.string.theme_amoled, R.string.theme_amoled_desc),
+    BLUE("blue", R.string.theme_blue, R.string.theme_blue_desc),
+    RED("red", R.string.theme_red, R.string.theme_red_desc),
+    PURPLE("purple", R.string.theme_purple, R.string.theme_purple_desc);
 
     companion object {
         fun fromId(id: String?): WinlatorThemeType = values().firstOrNull { it.id == id } ?: BLACK
@@ -171,15 +175,48 @@ internal fun winlatorColorScheme(theme: WinlatorThemeType): ColorScheme = when (
     WinlatorThemeType.PURPLE -> PurpleColors
 }
 
+/**
+ * Single accent used for primary actions (the "play" CTA) and selected states.
+ *
+ * The six Winlator colour schemes intentionally keep [ColorScheme.primary] near-white for the
+ * dark themes, which would turn a primary action button into a white block. This accent keeps the
+ * reference app's bright blue call-to-action while staying readable on every theme.
+ */
+private val DarkAccent = Color(0xFF1F8FFF)
+private val LightAccent = Color(0xFF1F6FEB)
+
+val LocalWinlatorAccent = staticCompositionLocalOf { DarkAccent }
+
+internal fun winlatorAccent(theme: WinlatorThemeType): Color =
+    if (theme == WinlatorThemeType.WHITE) LightAccent else DarkAccent
+
+/**
+ * MiSans (Variable Font) — the same typeface the reference "盖世游戏" app ships for its CJK + Latin
+ * text. Xiaomi publishes MiSans under the SIL Open Font License, so it is safe to bundle and
+ * redistribute. We point every typography slot at it so the whole UI shares one consistent face
+ * instead of falling back to the device's system sans-serif.
+ *
+ * The file is a variable font with a `wght` axis; declaring it once per weight lets Compose pick
+ * the correct instance for each [FontWeight] rather than faux-bolding.
+ */
+private val MisansFamily = FontFamily(
+    Font(R.font.misans_vf, FontWeight.W300),
+    Font(R.font.misans_vf, FontWeight.W400),
+    Font(R.font.misans_vf, FontWeight.W500),
+    Font(R.font.misans_vf, FontWeight.W600),
+    Font(R.font.misans_vf, FontWeight.W700),
+    Font(R.font.misans_vf, FontWeight.W800)
+)
+
 private val WinlatorTypography = Typography(
-    displaySmall = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold, fontSize = 38.sp, lineHeight = 44.sp, letterSpacing = (-0.6).sp),
-    headlineLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold, fontSize = 34.sp, lineHeight = 40.sp),
-    headlineMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold, fontSize = 28.sp, lineHeight = 34.sp),
-    titleLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, fontSize = 22.sp, lineHeight = 28.sp),
-    titleMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, lineHeight = 23.sp),
-    bodyLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Normal, fontSize = 16.sp, lineHeight = 23.sp),
-    bodyMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 20.sp),
-    labelLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, fontSize = 15.sp, lineHeight = 20.sp)
+    displaySmall = TextStyle(fontFamily = MisansFamily, fontWeight = FontWeight.SemiBold, fontSize = 34.sp, lineHeight = 40.sp, letterSpacing = (-0.5).sp),
+    headlineLarge = TextStyle(fontFamily = MisansFamily, fontWeight = FontWeight.SemiBold, fontSize = 30.sp, lineHeight = 36.sp),
+    headlineMedium = TextStyle(fontFamily = MisansFamily, fontWeight = FontWeight.SemiBold, fontSize = 26.sp, lineHeight = 32.sp),
+    titleLarge = TextStyle(fontFamily = MisansFamily, fontWeight = FontWeight.Medium, fontSize = 20.sp, lineHeight = 26.sp),
+    titleMedium = TextStyle(fontFamily = MisansFamily, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 22.sp),
+    bodyLarge = TextStyle(fontFamily = MisansFamily, fontWeight = FontWeight.Normal, fontSize = 15.sp, lineHeight = 22.sp),
+    bodyMedium = TextStyle(fontFamily = MisansFamily, fontWeight = FontWeight.Normal, fontSize = 13.sp, lineHeight = 18.sp),
+    labelLarge = TextStyle(fontFamily = MisansFamily, fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 20.sp)
 )
 
 private val WinlatorShapes = Shapes(
@@ -193,14 +230,16 @@ fun WinlatorTheme(content: @Composable () -> Unit) {
     val theme = WinlatorThemeManager.currentTheme()
     val colors = winlatorColorScheme(theme)
     ConfigureComposeHostFocus()
-    HideSystemBars(theme)
+    ConfigureSystemBars(theme)
     ApplyLegacyChrome(colors)
-    MaterialTheme(colorScheme = colors, typography = WinlatorTypography, shapes = WinlatorShapes) {
-        Surface(
-            color = MaterialTheme.colorScheme.background,
-            contentColor = MaterialTheme.colorScheme.onBackground
-        ) {
-            content()
+    CompositionLocalProvider(LocalWinlatorAccent provides winlatorAccent(theme)) {
+        MaterialTheme(colorScheme = colors, typography = WinlatorTypography, shapes = WinlatorShapes) {
+            Surface(
+                color = MaterialTheme.colorScheme.background,
+                contentColor = MaterialTheme.colorScheme.onBackground
+            ) {
+                content()
+            }
         }
     }
 }
@@ -241,18 +280,20 @@ private fun ConfigureComposeHostFocus() {
 }
 
 @Composable
-private fun HideSystemBars(theme: WinlatorThemeType) {
+private fun ConfigureSystemBars(theme: WinlatorThemeType) {
     val activity = LocalContext.current.findActivity()
     val colors = winlatorColorScheme(theme)
     DisposableEffect(activity, theme) {
         val window = activity?.window
         if (window != null) {
-            WindowCompat.setDecorFitsSystemWindows(window, false)
+            // Keep the status bar (and navigation bar) visible and let the system inset the content,
+            // so the clock / battery stay readable. In-game screens keep their own immersive theme.
+            WindowCompat.setDecorFitsSystemWindows(window, true)
             window.statusBarColor = colors.background.toArgb()
             window.navigationBarColor = colors.background.toArgb()
             val controller = WindowInsetsControllerCompat(window, window.decorView)
-            controller.hide(WindowInsetsCompat.Type.systemBars())
-            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller.show(WindowInsetsCompat.Type.systemBars())
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
             val light = theme == WinlatorThemeType.WHITE
             controller.isAppearanceLightStatusBars = light
             controller.isAppearanceLightNavigationBars = light
@@ -293,7 +334,7 @@ private fun ApplyLegacyChrome(colors: ColorScheme) {
                 intArrayOf(AndroidR.attr.state_checked),
                 intArrayOf()
             )
-            val navColors = intArrayOf(colors.primary.toArgb(), colors.onSurfaceVariant.toArgb())
+            val navColors = intArrayOf(colors.onSurface.toArgb(), colors.onSurfaceVariant.toArgb())
             val tint = ColorStateList(selectedStates, navColors)
 
             host.findViewById<BottomNavigationView>(R.id.BottomNavigation)?.let { bottom ->

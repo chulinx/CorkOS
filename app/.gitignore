@@ -1,3 +1,5 @@
 /.cxx
 /build
 /release
+# Local SDK path — machine specific, must never be committed.
+/local.properties

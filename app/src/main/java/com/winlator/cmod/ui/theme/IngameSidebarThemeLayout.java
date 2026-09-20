@@ -51,7 +51,7 @@ public class IngameSidebarThemeLayout extends FrameLayout {
         applyChosenTheme(context);
     }
 
-    private static void applyChosenTheme(Context context) {
+    public static void applyChosenTheme(Context context) {
         String theme = PreferenceManager.getDefaultSharedPreferences(context.getApplicationContext())
                 .getString("winlator_ui_theme", "black");
         int overlay;
@@ -69,32 +69,147 @@ public class IngameSidebarThemeLayout extends FrameLayout {
         super.onFinishInflate();
         readPalette();
         setBackgroundColor(background);
+        detachRailFromScrollingContent();
 
-        if (getChildCount() > 1 && getChildAt(1) instanceof ViewGroup) {
-            ViewGroup legacyRoot = (ViewGroup) getChildAt(1);
-            if (legacyRoot.getChildCount() >= 3) {
-                legacyRoot.getChildAt(0).setVisibility(View.GONE);
-                legacyRoot.getChildAt(1).setVisibility(View.GONE);
-                legacyRoot.setPadding(dp(64), legacyRoot.getPaddingTop(),
-                        legacyRoot.getPaddingRight(), legacyRoot.getPaddingBottom());
-            }
-        }
+        hideLegacyRailAndSetContentGutter();
 
         replaceLegacyFpsLimiter();
         applyCompactPremiumLayout();
+        localizeSidebarText(this);
         normalizeLegacyTree(this);
         forceKnownLegacyIconTints();
         fitMetricText();
 
         post(() -> {
+            hideLegacyRailAndSetContentGutter();
+            localizeSidebarText(this);
             normalizeLegacyTree(this);
             forceKnownLegacyIconTints();
         });
         postDelayed(() -> {
+            localizeSidebarText(this);
             normalizeLegacyTree(this);
             forceKnownLegacyIconTints();
             wrapLegacySpinnerAdapters(this);
         }, 500);
+    }
+
+    /** Hide the original left rail; only the fixed right rail (a sibling in the drawer XML) remains. */
+    private void hideLegacyRailAndSetContentGutter() {
+        if (getChildCount() == 0 || !(getChildAt(0) instanceof ViewGroup)) return;
+        ViewGroup legacyRoot = (ViewGroup) getChildAt(0);
+        // left_sidebar_original has: old rail, divider, scrolling content. Do not use a child-count
+        // threshold here: OEM inflater wrappers can omit the divider node.
+        if (legacyRoot.getChildCount() >= 1) legacyRoot.getChildAt(0).setVisibility(View.GONE);
+        if (legacyRoot.getChildCount() >= 2) legacyRoot.getChildAt(1).setVisibility(View.GONE);
+        legacyRoot.setPadding(dp(16), legacyRoot.getPaddingTop(),
+                dp(12), legacyRoot.getPaddingBottom());
+    }
+
+    /** Keep the icon rail fixed while only the settings content scrolls. */
+    private void detachRailFromScrollingContent() {
+        if (getChildCount() < 2) return;
+        View rail = getChildAt(0);
+        ViewGroup scrollingParent = getParent() instanceof ViewGroup
+                ? (ViewGroup) getParent() : null;
+        if (scrollingParent == null || !(scrollingParent.getParent() instanceof ViewGroup)) return;
+        ViewGroup drawerFrame = (ViewGroup) scrollingParent.getParent();
+        if (rail.getParent() != this || drawerFrame.findViewById(R.id.IngameSidebarRail) != null) return;
+
+        removeView(rail);
+        FrameLayout.LayoutParams railParams = new FrameLayout.LayoutParams(
+                dp(58), ViewGroup.LayoutParams.MATCH_PARENT, Gravity.END);
+        railParams.topMargin = dp(10);
+        railParams.bottomMargin = dp(10);
+        railParams.rightMargin = dp(6);
+        drawerFrame.addView(rail, railParams);
+    }
+
+    /**
+     * The legacy sidebar layout predates AppLocale and contains literal English labels. Convert
+     * only known display labels here; configuration values and technical names are deliberately
+     * left untouched.
+     */
+    private void localizeSidebarText(View view) {
+        if (view instanceof TextView) {
+            TextView textView = (TextView) view;
+            String value = String.valueOf(textView.getText());
+            int resource = sidebarStringId(value);
+            if (resource != 0) textView.setText(resource);
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                localizeSidebarText(group.getChildAt(i));
+            }
+        }
+    }
+
+    private int sidebarStringId(String value) {
+        switch (value) {
+            case "Rendering": return R.string.sidebar_rendering;
+            case "FPS Limiter": return R.string.sidebar_fps_limiter;
+            case "Super Resolution": return R.string.sidebar_super_resolution;
+            case "Upscaler Mode": return R.string.sidebar_upscaler_mode;
+            case "Sharpness": return R.string.sidebar_sharpness;
+            case "Post Effect": return R.string.sidebar_post_effect;
+            case "ReShade": return R.string.sidebar_reshade;
+            case "Effect": return R.string.sidebar_effect;
+            case "Strength": return R.string.sidebar_strength;
+            case "Frame Generation": return R.string.sidebar_frame_generation;
+            case "Save Preset": return R.string.sidebar_save_preset;
+            case "Display and Effects": return R.string.sidebar_display_effects;
+            case "Picture in Picture": return R.string.sidebar_pip;
+            case "Toggle Fullscreen": return R.string.sidebar_toggle_fullscreen;
+            case "Magnifier": return R.string.sidebar_magnifier;
+            case "Soft Stretch": return R.string.sidebar_soft_stretch;
+            case "Controls": return R.string.sidebar_controls;
+            case "Touch Controls Opacity": return R.string.sidebar_touch_opacity;
+            case "Show Keyboard": return R.string.sidebar_show_keyboard;
+            case "Vibration": return R.string.sidebar_vibration;
+            case "Relative Mouse": return R.string.sidebar_relative_mouse;
+            case "Disable Mouse": return R.string.sidebar_disable_mouse;
+            case "HUD": return R.string.sidebar_hud;
+            case "Enable HUD": return R.string.sidebar_enable_hud;
+            case "Style": return R.string.sidebar_style;
+            case "HUD Metrics": return R.string.sidebar_hud_metrics;
+            case "FPS": return R.string.sidebar_fps;
+            case "GPU": return R.string.sidebar_gpu;
+            case "CPU": return R.string.sidebar_cpu;
+            case "RAM": return R.string.sidebar_ram;
+            case "Batt/Temp": return R.string.sidebar_batt_temp;
+            case "GPU Name": return R.string.sidebar_gpu_name;
+            case "GPU Usage": return R.string.sidebar_gpu_usage;
+            case "CPU Usage": return R.string.sidebar_cpu_usage;
+            case "CPU Temp": return R.string.sidebar_cpu_temp;
+            case "Power": return R.string.sidebar_power;
+            case "Battery Temp": return R.string.sidebar_battery_temp;
+            case "Charge State": return R.string.sidebar_charge_state;
+            case "Processes": return R.string.sidebar_process_count;
+            case "Renderer": return R.string.sidebar_renderer;
+            case "HUD Size": return R.string.sidebar_hud_size;
+            case "HUD Opacity": return R.string.sidebar_hud_opacity;
+            case "Reset HUD": return R.string.sidebar_reset_hud;
+            case "Show Logs": return R.string.sidebar_show_logs;
+            case "Task Manager": return R.string.sidebar_task_manager;
+            case "Memory": return R.string.sidebar_memory;
+            case "+ New Task": return R.string.sidebar_new_task;
+            case "PERFORMANCE": return R.string.sidebar_performance_section;
+            case "IMAGE QUALITY": return R.string.sidebar_image_quality_section;
+            case "PRESETS": return R.string.sidebar_presets_section;
+            case "GENERAL": return R.string.sidebar_general_section;
+            case "APPEARANCE": return R.string.sidebar_appearance_section;
+            case "ACTIONS": return R.string.sidebar_actions_section;
+            default: return 0;
+        }
+    }
+
+    /** Re-run after a panel creates dynamic HUD/task-manager labels. */
+    public void refreshLocalizedText() {
+        hideLegacyRailAndSetContentGutter();
+        localizeSidebarText(this);
+        normalizeLegacyTree(this);
+        forceKnownLegacyIconTints();
     }
 
     private void replaceLegacyFpsLimiter() {
@@ -307,10 +422,18 @@ public class IngameSidebarThemeLayout extends FrameLayout {
                     new int[] { android.R.attr.state_checked },
                     new int[] { }
             };
+            // Keep the track visible on near-black surfaces; an almost-black track makes a Switch
+            // look like a lone white dot. The off state uses the outline token, while the on state
+            // gets a filled accent container.
+            boolean lightSidebar = Color.luminance(background) > 0.5f;
+            int offThumb = lightSidebar ? Color.rgb(105, 111, 122) : onSurfaceVariant;
+            int offTrack = lightSidebar ? Color.rgb(190, 196, 205) : surfaceVariant;
+            int onTrack = lightSidebar ? Color.rgb(171, 183, 198) : primaryContainer;
             toggle.setThumbTintList(new ColorStateList(states,
-                    new int[] { primary, onSurfaceVariant }));
+                    new int[] { primary, offThumb }));
             toggle.setTrackTintList(new ColorStateList(states,
-                    new int[] { primaryContainer, surfaceVariant }));
+                    new int[] { onTrack, offTrack }));
+            toggle.setMinimumWidth(dp(52));
         }
 
         if (view instanceof ViewGroup) {

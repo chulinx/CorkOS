@@ -78,6 +78,7 @@ import androidx.compose.ui.unit.dp
 import com.winlator.cmod.MainActivity
 import com.winlator.cmod.R
 import com.winlator.cmod.ui.LandscapeMainNavigation
+import com.winlator.cmod.ui.components.SectionHeader
 import com.winlator.cmod.ui.theme.WinZTheme
 import com.winlator.cmod.ui.theme.WinlatorThemePreferenceCard
 import kotlin.math.roundToInt
@@ -174,26 +175,26 @@ private fun SettingsScreen(model: SettingsModel, callbacks: SettingsCallbacks) {
     }
 
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        if (landscape) LandscapeMainNavigation(activity, R.id.main_menu_settings, "Settings")
+        if (landscape) LandscapeMainNavigation(activity, R.id.main_menu_settings, stringResource(R.string.settings))
         LazyColumn(
             modifier = Modifier.fillMaxWidth().weight(1f),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 30.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            item("appearance-title") { SectionTitle("APPEARANCE") }
+            item("appearance-title") { SectionTitle(stringResource(R.string.settings_section_appearance)) }
             item("theme") { WinlatorThemePreferenceCard() }
 
-            item("environment-title") { SectionTitle("ENVIRONMENTS") }
+            item("environment-title") { SectionTitle(stringResource(R.string.settings_section_environments)) }
             item("containers") {
-                NavigationRow(Icons.Outlined.Dns, "Containers", "Create and manage Windows environments") {
+                NavigationRow(Icons.Outlined.Dns, stringResource(R.string.containers), stringResource(R.string.settings_containers_summary)) {
                     context.startActivity(Intent(context, ContainersSettingsActivity::class.java))
                 }
             }
             item("components") {
-                NavigationRow(Icons.Outlined.Apps, "Components", "Wine, Proton, DXVK, VKD3D and runtimes", callbacks::onOpenComponents)
+                NavigationRow(Icons.Outlined.Apps, stringResource(R.string.components), stringResource(R.string.settings_components_summary), callbacks::onOpenComponents)
             }
 
-            item("presets-title") { SectionTitle("PRESETS") }
+            item("presets-title") { SectionTitle(stringResource(R.string.settings_section_presets)) }
             item("presets") {
                 GroupCard {
                     PresetChoiceRow(
@@ -223,20 +224,20 @@ private fun SettingsScreen(model: SettingsModel, callbacks: SettingsCallbacks) {
                 SoundFontCard(model.soundFonts, callbacks::onInstallSoundFont, callbacks::onRemoveSoundFont)
             }
 
-            item("paths-title") { SectionTitle("PATH SETTINGS") }
-            item("winlator-path") { NavigationRow(Icons.Outlined.Storage, "Winlator Path", model.winlatorPath, callbacks::onChooseWinlatorPath) }
-            item("shortcut-path") { NavigationRow(Icons.Outlined.FolderOpen, "Shortcut Export Path", model.shortcutPath, callbacks::onChooseShortcutPath) }
+            item("paths-title") { SectionTitle(stringResource(R.string.settings_section_paths)) }
+            item("winlator-path") { NavigationRow(Icons.Outlined.Storage, stringResource(R.string.settings_winlator_path), model.winlatorPath, callbacks::onChooseWinlatorPath) }
+            item("shortcut-path") { NavigationRow(Icons.Outlined.FolderOpen, stringResource(R.string.settings_shortcut_export_path), model.shortcutPath, callbacks::onChooseShortcutPath) }
 
-            item("big-picture-title") { SectionTitle("BIG PICTURE MODE") }
+            item("big-picture-title") { SectionTitle(stringResource(R.string.settings_section_big_picture)) }
             item("big-picture") {
                 GroupCard {
-                    ToggleRow("Enable Big Picture Mode on App Launch", model.bigPicture) { callbacks.onBooleanChanged("enable_big_picture_mode", it) }
+                    ToggleRow(stringResource(R.string.settings_enable_big_picture), model.bigPicture) { callbacks.onBooleanChanged("enable_big_picture_mode", it) }
                     GroupDivider()
-                    ToggleRow("Set SteamGrid API Key? (Cover Art)", model.customApiKeyEnabled) { callbacks.onBooleanChanged("enable_custom_api_key", it) }
+                    ToggleRow(stringResource(R.string.settings_steamgrid_key_toggle), model.customApiKeyEnabled) { callbacks.onBooleanChanged("enable_custom_api_key", it) }
                 }
             }
             if (model.customApiKeyEnabled) {
-                item("api-key") { EditableValueCard("SteamGridDB API Key", model.customApiKey, callbacks::onCustomApiKeyChanged) }
+                item("api-key") { EditableValueCard(stringResource(R.string.settings_steamgrid_key), model.customApiKey, callbacks::onCustomApiKeyChanged) }
             }
 
             item("xserver-title") { SectionTitle(stringResource(R.string.xserver)) }
@@ -250,9 +251,9 @@ private fun SettingsScreen(model: SettingsModel, callbacks: SettingsCallbacks) {
                         ToggleRow(stringResource(R.string.use_xr), model.useXr) { callbacks.onBooleanChanged("use_xr", it) }
                     }
                     GroupDivider()
-                    ToggleRow("Capture External Pointer", model.cursorLock) { callbacks.onBooleanChanged("cursor_lock", it) }
+                    ToggleRow(stringResource(R.string.settings_capture_external_pointer), model.cursorLock) { callbacks.onBooleanChanged("cursor_lock", it) }
                     GroupDivider()
-                    ToggleRow("Disable Xinput (Used for Exclusive M/KB support)", model.xInput) { callbacks.onBooleanChanged("xinput_toggle", it) }
+                    ToggleRow(stringResource(R.string.settings_disable_xinput), model.xInput) { callbacks.onBooleanChanged("xinput_toggle", it) }
                 }
             }
 
@@ -289,14 +290,14 @@ private fun SettingsScreen(model: SettingsModel, callbacks: SettingsCallbacks) {
                     ToggleRow(stringResource(R.string.remove_loading_bar_when_booting_games), model.removeLoadingBar) { callbacks.onBooleanChanged("remove_loading_bar_when_booting_games", it) }
                 }
             }
-            item("contents-url") { EditableValueCard("Downloadable Contents URL", model.contentsUrl, callbacks::onContentsUrlChanged) }
+            item("contents-url") { EditableValueCard(stringResource(R.string.settings_contents_url), model.contentsUrl, callbacks::onContentsUrlChanged) }
 
             item("imagefs-title") { SectionTitle(stringResource(R.string.imagefs)) }
             item("imagefs") { NavigationRow(Icons.Outlined.Refresh, stringResource(R.string.reinstall_imagefs), null, callbacks::onReinstallImageFs) }
 
-            item("about-title") { SectionTitle("ABOUT") }
+            item("about-title") { SectionTitle(stringResource(R.string.about)) }
             item("about") {
-                NavigationRow(Icons.Outlined.Info, "About", null) { activity?.showAboutDialog() }
+                NavigationRow(Icons.Outlined.Info, stringResource(R.string.about), null) { activity?.showAboutDialog() }
             }
         }
     }
@@ -304,22 +305,15 @@ private fun SettingsScreen(model: SettingsModel, callbacks: SettingsCallbacks) {
 
 @Composable
 private fun SectionTitle(text: String) {
-    Text(
-        text.uppercase(),
-        modifier = Modifier.padding(start = 3.dp, top = 16.dp, bottom = 4.dp),
-        style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
+    SectionHeader(title = text, horizontalPadding = 0.dp)
 }
 
 @Composable
 private fun GroupCard(content: @Composable () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface
     ) { Column { content() } }
 }
 
@@ -333,27 +327,32 @@ private fun NavigationRow(icon: ImageVector, title: String, subtitle: String?, o
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface
     ) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             SmallIcon(icon)
-            Spacer(Modifier.width(11.dp))
+            Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                Text(title, style = MaterialTheme.typography.bodyLarge)
                 if (!subtitle.isNullOrBlank()) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
-            Icon(Icons.Outlined.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Icons.Outlined.ChevronRight, null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
 @Composable
 private fun SmallIcon(icon: ImageVector) {
-    Surface(Modifier.size(38.dp), shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
-        Box(contentAlignment = Alignment.Center) { Icon(icon, null, modifier = Modifier.size(21.dp)) }
-    }
+    Icon(
+        icon,
+        null,
+        modifier = Modifier.size(24.dp),
+        tint = MaterialTheme.colorScheme.onSurface
+    )
 }
 
 @Composable
@@ -369,7 +368,7 @@ private fun CursorSpeedRow(value: Int, onChanged: (Int) -> Unit) {
     var draft by remember(value) { mutableFloatStateOf(value.coerceIn(10, 200).toFloat()) }
     Column(Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Cursor speed", modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.cursor_speed), modifier = Modifier.weight(1f))
             Text("${draft.roundToInt()}%", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Slider(
@@ -417,11 +416,11 @@ private fun PresetChoiceRow(
             }
             Box {
                 IconButton(onClick = { actionsOpen = true }) {
-                    Icon(Icons.Outlined.MoreVert, "Preset actions")
+                    Icon(Icons.Outlined.MoreVert, stringResource(R.string.settings_preset_actions))
                 }
                 DropdownMenu(expanded = actionsOpen, onDismissRequest = { actionsOpen = false }) {
                     DropdownMenuItem(
-                        text = { Text("Create new") },
+                        text = { Text(stringResource(R.string.action_create_new)) },
                         leadingIcon = { Icon(Icons.Outlined.Add, null) },
                         onClick = {
                             actionsOpen = false
@@ -430,7 +429,7 @@ private fun PresetChoiceRow(
                     )
                     if (selectedId.isNotBlank()) {
                         DropdownMenuItem(
-                            text = { Text("Clone") },
+                            text = { Text(stringResource(R.string.duplicate)) },
                             leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
                             onClick = {
                                 actionsOpen = false
@@ -438,7 +437,7 @@ private fun PresetChoiceRow(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Edit") },
+                            text = { Text(stringResource(R.string.edit)) },
                             leadingIcon = { Icon(Icons.Outlined.Edit, null) },
                             onClick = {
                                 actionsOpen = false
@@ -446,7 +445,7 @@ private fun PresetChoiceRow(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Delete") },
+                            text = { Text(stringResource(R.string.action_delete)) },
                             leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null) },
                             onClick = {
                                 actionsOpen = false
@@ -498,7 +497,7 @@ private fun WineDebugChannelsRow(
         selectedValue.split(',').map { it.trim() }.filter { it.isNotEmpty() }
     }
     val summary = when {
-        selectedChannels.isEmpty() -> "No channels selected"
+        selectedChannels.isEmpty() -> stringResource(R.string.settings_no_channels_selected)
         selectedChannels.size <= 3 -> selectedChannels.joinToString(", ")
         else -> selectedChannels.take(3).joinToString(", ") + " +${selectedChannels.size - 3}"
     }
@@ -511,7 +510,7 @@ private fun WineDebugChannelsRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f)) {
-            Text("Wine debug channels", style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(R.string.settings_wine_debug_channels), style = MaterialTheme.typography.bodyLarge)
             Text(
                 summary,
                 style = MaterialTheme.typography.bodySmall,
@@ -555,13 +554,13 @@ private fun WineDebugChannelsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Wine debug channels") },
+        title = { Text(stringResource(R.string.settings_wine_debug_channels)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    label = { Text("Search channels") },
+                    label = { Text(stringResource(R.string.settings_search_channels)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -594,10 +593,10 @@ private fun WineDebugChannelsDialog(
         },
         confirmButton = {
             TextButton(onClick = { onApply(allOptions.filter { it in selected }.joinToString(",")) }) {
-                Text("Apply")
+                Text(stringResource(R.string.action_apply))
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
     )
 }
 
@@ -616,7 +615,7 @@ private fun SoundFontCard(choices: List<SettingChoice>, onInstall: () -> Unit, o
         Button(onClick = onInstall, modifier = Modifier.fillMaxWidth().padding(12.dp)) {
             Icon(Icons.Outlined.Add, null)
             Spacer(Modifier.width(7.dp))
-            Text("Install SoundFont")
+            Text(stringResource(R.string.settings_install_soundfont))
         }
     }
 }
@@ -631,7 +630,7 @@ private fun EditableInlineValue(label: String, initial: String, onSave: (String)
     var value by remember(initial) { mutableStateOf(initial) }
     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(value = value, onValueChange = { value = it }, label = { Text(label) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-        Button(onClick = { onSave(value) }, modifier = Modifier.align(Alignment.End)) { Text("Save") }
+        Button(onClick = { onSave(value) }, modifier = Modifier.align(Alignment.End)) { Text(stringResource(R.string.save)) }
     }
 }
 

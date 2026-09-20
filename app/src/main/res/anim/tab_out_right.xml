@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Leaving tab content slides out to the right (navigating to a tab on the left). -->
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:duration="220">
+    <alpha
+        android:fromAlpha="1"
+        android:toAlpha="0"
+        android:interpolator="@android:anim/accelerate_interpolator" />
+    <translate
+        android:fromXDelta="0"
+        android:toXDelta="28%p"
+        android:interpolator="@android:anim/accelerate_interpolator" />
+</set>

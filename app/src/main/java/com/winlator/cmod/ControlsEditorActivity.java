@@ -41,6 +41,7 @@ import java.util.List;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.preference.PreferenceManager;
 
+import com.winlator.cmod.core.AppLocale;
 import com.winlator.cmod.R;
 import com.winlator.cmod.contentdialog.ContentDialog;
 
@@ -56,6 +57,11 @@ import com.winlator.cmod.widget.InputControlsView;
 import com.winlator.cmod.widget.NumberPicker;
 
 public class ControlsEditorActivity extends AppCompatActivity implements View.OnClickListener {
+
+    @Override
+    protected void attachBaseContext(android.content.Context newBase) {
+        super.attachBaseContext(AppLocale.wrap(newBase));
+    }
     private InputControlsView inputControlsView;
     private ControlsProfile profile;
     private ControlElement pendingIconElement = null;
@@ -147,7 +153,7 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
         popupContent.setPadding(pad, pad, pad, pad);
 
         TextView title = new TextView(this);
-        title.setText("Scheme Color");
+        title.setText(getString(R.string.scheme_color));
         title.setTextColor(0xffffffff);
         title.setTextSize(14);
         popupContent.addView(title);

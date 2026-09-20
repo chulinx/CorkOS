@@ -145,7 +145,7 @@ public class SidebarCleanupView extends View {
                     "Renderer", WinlatorHUD.SHOW_RENDERER);
             addHudOptionRow(metrics,
                     "GPU Usage", WinlatorHUD.SHOW_GPU_USAGE,
-                    "GPU Name", WinlatorHUD.SHOW_GPU_NAME);
+                    getContext().getString(R.string.gpu_name), WinlatorHUD.SHOW_GPU_NAME);
             addHudOptionRow(metrics,
                     "CPU Usage", WinlatorHUD.SHOW_CPU_USAGE,
                     "CPU Temp", WinlatorHUD.SHOW_CPU_TEMP);
@@ -159,7 +159,7 @@ public class SidebarCleanupView extends View {
             SharedPreferences hudPrefs = getContext().getSharedPreferences(
                     WinlatorHUD.PREFS, Context.MODE_PRIVATE);
             Switch dualCell = new Switch(getContext());
-            dualCell.setText("Dual-cell correction");
+            dualCell.setText(getContext().getString(R.string.dual_cell_correction));
             dualCell.setTextColor(resolveColor(R.attr.ingameSidebarOnSurface, 0xFFFFFFFF));
             dualCell.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
             dualCell.setGravity(Gravity.CENTER_VERTICAL);

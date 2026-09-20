@@ -84,7 +84,7 @@ public class ImagePickerView extends View implements View.OnClickListener {
 
         wallpaperSection.setVisibility(VISIBLE);
         TextView title = wallpaperSection.findViewById(R.id.TVDesktop);
-        if (title != null) title.setText("Wallpaper");
+        if (title != null) title.setText(getContext().getString(R.string.wallpaper));
 
         int oldIndex = generalTab.indexOfChild(wallpaperSection);
         if (oldIndex > 0) {
@@ -117,12 +117,12 @@ public class ImagePickerView extends View implements View.OnClickListener {
         row.setPadding(0, dp(8), 0, 0);
 
         TextView label = new TextView(getContext());
-        label.setText("Wallpaper image");
+        label.setText(getContext().getString(R.string.wallpaper_image));
         label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         row.addView(label, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         TextView action = new TextView(getContext());
-        action.setText(WineThemeManager.getUserWallpaperFile(getContext()).isFile() ? "Change image" : "Choose image");
+        action.setText(WineThemeManager.getUserWallpaperFile(getContext()).isFile() ? "Change image" : getContext().getString(R.string.choose_image));
         action.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         action.setGravity(Gravity.CENTER);
         action.setClickable(true);

@@ -102,7 +102,7 @@ public class FileManagerFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         if (getActivity() != null && ((AppCompatActivity) getActivity()).getSupportActionBar() != null) {
-            ((AppCompatActivity) getActivity()).getSupportActionBar().setTitle("File Manager");
+            ((AppCompatActivity) getActivity()).getSupportActionBar().setTitle(getString(R.string.file_manager));
         }
     }
 
@@ -421,7 +421,7 @@ public class FileManagerFragment extends Fragment {
         if (discoveredExternalStorageRoots != null) {
             for (File external : discoveredExternalStorageRoots) {
                 driveOptionsPanel.addView(createDriveOptionRow(
-                        "External Storage", external.getName(), samePath(currentDriveRoot, external), () -> openDrive(external, external)));
+                        getString(R.string.external_storage), external.getName(), samePath(currentDriveRoot, external), () -> openDrive(external, external)));
             }
         }
 
@@ -496,7 +496,7 @@ public class FileManagerFragment extends Fragment {
         ArrayList<Container> containers = containerManager.getContainers();
         if (containers == null || containers.isEmpty()) {
             new AlertDialog.Builder(getContext())
-                    .setTitle("No Containers")
+                    .setTitle(getString(R.string.no_containers))
                     .setMessage("You need to create a container first to access Drive C:.")
                     .setPositiveButton("OK", null)
                     .show();
@@ -523,7 +523,7 @@ public class FileManagerFragment extends Fragment {
             Toast.makeText(getContext(), "Opened C: (" + container.getName() + ")", Toast.LENGTH_SHORT).show();
         } else {
             new AlertDialog.Builder(getContext())
-                    .setTitle("Drive C: Not Initialized")
+                    .setTitle(getString(R.string.drive_c_not_initialized))
                     .setMessage("The Wine system files (Drive C:) for '" + container.getName() + "' are missing.\n\n" +
                             "Please RUN this container once to generate the filesystem.")
                     .setPositiveButton("OK", null)
@@ -591,7 +591,7 @@ public class FileManagerFragment extends Fragment {
             tvDriveName.setText("Drive D:");
             ivDriveIcon.setImageResource(R.drawable.ic_internal_storage);
         } else if (path.startsWith("/storage/") && !path.startsWith("/storage/emulated")) {
-            tvDriveName.setText("External Storage");
+            tvDriveName.setText(getString(R.string.external_storage));
             ivDriveIcon.setImageResource(R.drawable.ic_internal_storage);
         } else {
             tvDriveName.setText("Drive Z:");
@@ -884,15 +884,15 @@ public class FileManagerFragment extends Fragment {
         File dest = new File(currentDir, source.getName());
         if (dest.exists()) {
             AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-            builder.setTitle("File Conflict");
+            builder.setTitle(getString(R.string.file_conflict));
             builder.setMessage("The destination \"" + dest.getName() + "\" already exists.");
-            builder.setPositiveButton("Replace", (dialog, which) -> {
+            builder.setPositiveButton(getString(R.string.replace), (dialog, which) -> {
                 deleteRecursive(dest);
                 executePaste(source, dest);
             });
-            builder.setNeutralButton("Rename", (dialog, which) ->
+            builder.setNeutralButton(getString(R.string.rename), (dialog, which) ->
                     executePaste(source, getUniqueDestination(currentDir, source.getName())));
-            builder.setNegativeButton("Cancel", null);
+            builder.setNegativeButton(getString(R.string.cancel), null);
             builder.show();
         } else {
             executePaste(source, dest);
@@ -989,12 +989,12 @@ public class FileManagerFragment extends Fragment {
         layout.addView(progressBar);
 
         progressText = new TextView(getContext());
-        progressText.setText("Calculating...");
+        progressText.setText(getString(R.string.calculating));
         progressText.setPadding(0, 20, 0, 0);
         layout.addView(progressText);
 
         builder.setView(layout);
-        builder.setNegativeButton("Cancel", (d, w) -> isOperationCancelled = true);
+        builder.setNegativeButton(getString(R.string.cancel), (d, w) -> isOperationCancelled = true);
         progressDialog = builder.create();
         progressDialog.show();
     }
@@ -1074,7 +1074,7 @@ public class FileManagerFragment extends Fragment {
 
     private void renameFile(File file) {
         AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-        builder.setTitle("Rename");
+        builder.setTitle(getString(R.string.rename));
         final EditText input = new EditText(getContext());
         input.setText(file.getName());
         builder.setView(input);
@@ -1084,7 +1084,7 @@ public class FileManagerFragment extends Fragment {
             if (file.renameTo(newFile)) loadDirectory(currentDir);
             else Toast.makeText(getContext(), "Rename failed", Toast.LENGTH_SHORT).show();
         });
-        builder.setNegativeButton("Cancel", null);
+        builder.setNegativeButton(getString(R.string.cancel), null);
         builder.show();
     }
 
@@ -1113,13 +1113,13 @@ public class FileManagerFragment extends Fragment {
             copyToClipboard(file, true);
             return true;
         });
-        popup.getMenu().add("Rename").setOnMenuItemClickListener(item -> {
+        popup.getMenu().add(getString(R.string.rename)).setOnMenuItemClickListener(item -> {
             renameFile(file);
             return true;
         });
-        popup.getMenu().add("Delete").setOnMenuItemClickListener(item -> {
+        popup.getMenu().add(getString(R.string.action_delete)).setOnMenuItemClickListener(item -> {
             new AlertDialog.Builder(getContext())
-                    .setTitle("Delete")
+                    .setTitle(getString(R.string.action_delete))
                     .setMessage("Are you sure you want to delete " + file.getName() + "?")
                     .setPositiveButton("Yes", (d, w) -> {
                         deleteRecursive(file);

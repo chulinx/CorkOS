@@ -52,6 +52,9 @@ import com.winlator.cmod.ui.library.LibraryComposeBinding;
 import com.winlator.cmod.ui.library.LibraryComposeController;
 import com.winlator.cmod.ui.library.LibraryComposeHost;
 import com.winlator.cmod.ui.library.LibraryItem;
+import com.winlator.cmod.ui.profile.PlaytimeSnapshot;
+import com.winlator.cmod.ui.profile.PlaytimeStats;
+import com.winlator.cmod.ui.settings.ContainersSettingsActivity;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -81,6 +84,7 @@ import java.util.concurrent.Executors;
 
 public class ShortcutsFragment extends Fragment {
     private static final String TAG = "ShortcutsFragment";
+    private static final String GRID_DEFAULT_MIGRATION = "enhanced_library_grid_default_v2";
     private static final int MENU_VIEW_MODE = 1;
     private static final int MENU_SEARCH = 2;
     private static final int MENU_FILE_MANAGER = 3;
@@ -111,7 +115,8 @@ public class ShortcutsFragment extends Fragment {
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setHasOptionsMenu(true);
+        // The library owns its own search / sort / view controls inside the content area.
+        setHasOptionsMenu(false);
 
         iconPickerLauncher = registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
             if (uri != null && shortcutForIconUpdate != null) {
@@ -155,14 +160,17 @@ public class ShortcutsFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         preferences = PreferenceManager.getDefaultSharedPreferences(getContext());
-        if (!preferences.getBoolean("enhanced_library_migrated", false)) {
-            isGridView = false;
+        // The redesigned library defaults to the cover-card grid. Apply this once for users who
+        // arrived from the old list-first layout, then preserve any later user choice.
+        if (!preferences.getBoolean(GRID_DEFAULT_MIGRATION, false)) {
+            isGridView = true;
             preferences.edit()
-                    .putBoolean("shortcuts_grid_view", false)
+                    .putBoolean("shortcuts_grid_view", true)
+                    .putBoolean(GRID_DEFAULT_MIGRATION, true)
                     .putBoolean("enhanced_library_migrated", true)
                     .apply();
         } else {
-            isGridView = preferences.getBoolean("shortcuts_grid_view", false);
+            isGridView = preferences.getBoolean("shortcuts_grid_view", true);
         }
 
         LibraryComposeBinding binding = LibraryComposeHost.create(
@@ -178,7 +186,10 @@ public class ShortcutsFragment extends Fragment {
                     @Override
                     public void onRun(@NonNull String shortcutPath) {
                         Shortcut shortcut = findShortcut(shortcutPath);
-                        if (shortcut != null) runFromShortcut(shortcut);
+                        if (shortcut != null) {
+                            GameLaunchTransition.show(requireActivity(), shortcut,
+                                    () -> runFromShortcut(shortcut));
+                        }
                     }
 
                     @Override
@@ -197,99 +208,33 @@ public class ShortcutsFragment extends Fragment {
                         Shortcut shortcut = findShortcut(shortcutPath);
                         if (shortcut != null) requestArtwork(shortcut, kind);
                     }
+
+                    @Override
+                    public void onOpenImport() {
+                        navigateTo(R.id.main_menu_file_manager);
+                    }
+
+                    @Override
+                    public void onOpenContainers() {
+                        startActivity(new Intent(requireContext(), ContainersSettingsActivity.class));
+                    }
+
+                    @Override
+                    public void onOpenComponents() {
+                        Intent intent = new Intent(requireContext(), OnboardingActivity.class);
+                        intent.putExtra(OnboardingActivity.EXTRA_COMPONENT_MANAGER, true);
+                        startActivity(intent);
+                    }
                 }
         );
         libraryController = binding.getController();
         return binding.getView();
     }
 
-    @Override
-    public void onCreateOptionsMenu(@NonNull Menu menu, @NonNull MenuInflater inflater) {
-        super.onCreateOptionsMenu(menu, inflater);
-
-        MenuItem viewItem = menu.add(0, MENU_VIEW_MODE, 0, isGridView ? "List View" : "Grid View");
-        viewItem.setIcon(R.drawable.ui_ic_view);
-        viewItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
-
-        MenuItem searchItem = menu.add(0, MENU_SEARCH, 1, "Search");
-        searchItem.setIcon(R.drawable.ui_ic_search);
-        searchItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS |
-                MenuItem.SHOW_AS_ACTION_COLLAPSE_ACTION_VIEW);
-        SearchView searchView = new SearchView(requireContext());
-        searchView.setQueryHint("Search games");
-        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-            @Override
-            public boolean onQueryTextSubmit(String query) {
-                if (libraryController != null) libraryController.setSearchQuery(query);
-                return true;
-            }
-
-            @Override
-            public boolean onQueryTextChange(String query) {
-                if (libraryController != null) libraryController.setSearchQuery(query);
-                return true;
-            }
-        });
-        searchItem.setActionView(searchView);
-
-        MenuItem addItem = menu.add(0, MENU_FILE_MANAGER, 2, "Open File Manager");
-        addItem.setIcon(R.drawable.ui_ic_add);
-        addItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
-
-        MainActivity activity = (MainActivity) requireActivity();
-        SubMenu moreMenu = menu.addSubMenu(0, MENU_MORE, 3, "More");
-        MenuItem moreItem = moreMenu.getItem();
-        moreItem.setIcon(R.drawable.ui_ic_more);
-        moreItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
-
-        moreMenu.add(MENU_GROUP_LOCK, MENU_LOCK_ORIENTATION, 0, "Lock screen orientation")
-                .setCheckable(true)
-                .setChecked(activity.isOrientationLocked());
-        moreMenu.add(MENU_GROUP_ORIENTATION_MODE, MENU_VERTICAL_MODE, 1, "Vertical mode")
-                .setCheckable(true)
-                .setChecked(activity.isVerticalModeEnabled());
-        moreMenu.add(MENU_GROUP_ORIENTATION_MODE, MENU_HORIZONTAL_MODE, 2, "Horizontal mode")
-                .setCheckable(true)
-                .setChecked(activity.isHorizontalModeEnabled());
-        moreMenu.setGroupCheckable(MENU_GROUP_LOCK, true, false);
-        moreMenu.setGroupCheckable(MENU_GROUP_ORIENTATION_MODE, true, true);
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        if (item.getItemId() == MENU_VIEW_MODE) {
-            setGridView(!isGridView);
-            return true;
-        }
-        if (item.getItemId() == MENU_FILE_MANAGER) {
-            getParentFragmentManager().beginTransaction()
-                    .setCustomAnimations(R.anim.slide_in_up, R.anim.slide_out_down)
-                    .addToBackStack(null)
-                    .replace(R.id.FLFragmentContainer, new FileManagerFragment())
-                    .commit();
-            return true;
-        }
-        MainActivity activity = (MainActivity) requireActivity();
-        if (item.getItemId() == MENU_LOCK_ORIENTATION) {
-            activity.toggleOrientationLock();
-            return true;
-        }
-        if (item.getItemId() == MENU_VERTICAL_MODE) {
-            activity.toggleVerticalMode();
-            return true;
-        }
-        if (item.getItemId() == MENU_HORIZONTAL_MODE) {
-            activity.toggleHorizontalMode();
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
-    }
-
     private void setGridView(boolean gridView) {
         isGridView = gridView;
         preferences.edit().putBoolean("shortcuts_grid_view", isGridView).apply();
         if (libraryController != null) libraryController.setGridView(isGridView);
-        requireActivity().invalidateOptionsMenu();
     }
 
     private void fetchCoverFromSteamGrid(Shortcut shortcut, File destFile,
@@ -450,6 +395,7 @@ public class ShortcutsFragment extends Fragment {
 
     private void publishLibraryItems() {
         if (libraryController == null) return;
+        PlaytimeSnapshot playtime = PlaytimeStats.load(requireContext());
         ArrayList<LibraryItem> items = new ArrayList<>();
         for (Shortcut shortcut : allShortcuts) {
             String baseName = FileUtils.getBasename(shortcut.file.getPath());
@@ -470,10 +416,17 @@ public class ShortcutsFragment extends Fragment {
                     iconPath,
                     shortcut.icon,
                     "1".equals(shortcut.getExtra("favorite", "0")),
-                    parseLastRunAt(shortcut)
+                    parseLastRunAt(shortcut),
+                    playtime.playtimeMillisFor(shortcut.name)
             ));
         }
         libraryController.setItems(items);
+    }
+
+    private void navigateTo(int menuItemId) {
+        if (getActivity() instanceof MainActivity) {
+            ((MainActivity) getActivity()).navigateToSubDestination(menuItemId);
+        }
     }
 
     private long parseLastRunAt(Shortcut shortcut) {
@@ -669,7 +622,7 @@ public class ShortcutsFragment extends Fragment {
             ContainerManager containerManager = new ContainerManager(context);
             ArrayList<Container> containers = containerManager.getContainers();
             AlertDialog.Builder builder = new AlertDialog.Builder(context);
-            builder.setTitle("Select a container");
+            builder.setTitle(getString(R.string.select_a_container));
             String[] containerNames = new String[containers.size()];
             for (int i = 0; i < containers.size(); i++) {
                 containerNames[i] = containers.get(i).getName();

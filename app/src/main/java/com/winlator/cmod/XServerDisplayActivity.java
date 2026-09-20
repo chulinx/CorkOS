@@ -55,6 +55,7 @@ import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.preference.PreferenceManager;
 
+import com.winlator.cmod.core.AppLocale;
 import com.winlator.cmod.container.Container;
 import com.winlator.cmod.container.ContainerManager;
 import com.winlator.cmod.container.Shortcut;
@@ -142,6 +143,11 @@ import java.util.regex.Pattern;
 import cn.sherlock.com.sun.media.sound.SF2Soundbank;
 
 public class XServerDisplayActivity extends AppCompatActivity {
+
+    @Override
+    protected void attachBaseContext(android.content.Context newBase) {
+        super.attachBaseContext(AppLocale.wrap(newBase));
+    }
 
     private static final boolean DISABLE_TOUCHSCREEN_AUTO_HIDE = true;
     private static final HashMap<String, Boolean> WINE_XRANDR_SUPPORT_CACHE = new HashMap<>();
@@ -353,7 +359,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
         drawerLayout = findViewById(R.id.DrawerLayout);
         drawerLayout.setOnApplyWindowInsetsListener(
                 (view, windowInsets) -> windowInsets.replaceSystemWindowInsets(0, 0, 0, 0));
-        drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
+        // The in-game panel follows the reference app: it is a right-edge drawer and can be
+        // opened with a right-edge swipe toward the left. Keep the four-finger shortcut too.
+        drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED);
         drawerLayout.addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
             @Override
             public void onDrawerOpened(View drawerView) {
@@ -653,7 +661,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_stat_ab_gear_0011)
                 .setContentTitle("Winlator")
-                .setContentText("Winlator is running, do not kill or swipe this notification")
+                .setContentText(getString(R.string.running_notification))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(false);
@@ -943,8 +951,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
     @Override
     public void onBackPressed() {
         if (environment != null) {
-            if (!drawerLayout.isDrawerOpen(GravityCompat.START)) {
-                drawerLayout.openDrawer(GravityCompat.START);
+            if (!drawerLayout.isDrawerOpen(GravityCompat.END)) {
+                drawerLayout.openDrawer(GravityCompat.END);
             } else
                 drawerLayout.closeDrawers();
         }
@@ -1250,8 +1258,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
         touchpadView.setSensitivity(globalCursorSpeed);
         touchpadView.setMouseEnabled(!isMouseDisabled);
         touchpadView.setFourFingersTapCallback(() -> {
-            if (!drawerLayout.isDrawerOpen(GravityCompat.START))
-                drawerLayout.openDrawer(GravityCompat.START);
+            if (!drawerLayout.isDrawerOpen(GravityCompat.END))
+                drawerLayout.openDrawer(GravityCompat.END);
         });
         View.OnCapturedPointerListener capturedPointerListener = new View.OnCapturedPointerListener() {
             @Override
@@ -1612,6 +1620,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
             sub.animate().alpha(1.0f).translationX(0.0f).setDuration(130).start();
         }
         setSidebarActiveItem(parentId);
+        View sidebarRoot = findViewById(R.id.IngameSidebarRoot);
+        if (sidebarRoot instanceof com.winlator.cmod.ui.theme.IngameSidebarThemeLayout) {
+            ((com.winlator.cmod.ui.theme.IngameSidebarThemeLayout) sidebarRoot).refreshLocalizedText();
+        }
         if (parentId != R.id.BTItemMouse && parentId != R.id.BTItemPause) {
             activeSidebarItemId = parentId;
             activeSidebarPanelId = subId;
@@ -1678,7 +1690,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         boolean isModern = currentMode == 2;
 
         if (spHudStyle != null) {
-            ArrayAdapter<String> styleAdapter = createSidebarSpinnerAdapter(new String[]{"Classic", "Modern"});
+            ArrayAdapter<String> styleAdapter = createSidebarSpinnerAdapter(new String[]{getString(R.string.sidebar_classic), getString(R.string.sidebar_modern)});
             styleAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
             spHudStyle.setAdapter(styleAdapter);
             spHudStyle.setSelection(isModern ? 1 : 0, false);
@@ -1863,7 +1875,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         }
 
         final int[]    fpsValues = {0, 30, 60, 90, 120};
-        final String[] fpsLabels = {"Off", "30 FPS", "60 FPS", "90 FPS", "120 FPS"};
+        final String[] fpsLabels = {getString(R.string.off), "30 FPS", "60 FPS", "90 FPS", "120 FPS"};
 
         if (spNativeFPS != null) {
             ArrayAdapter<String> a = createSidebarSpinnerAdapter(fpsLabels);
@@ -1908,7 +1920,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     container.putExtra("graphicsColorMode", "0");
                 }
                 container.saveData();
-                Toast.makeText(this, "Preset saved", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, R.string.sidebar_preset_saved, Toast.LENGTH_SHORT).show();
             });
         }
 
@@ -1963,7 +1975,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
             });
         }
 
-        final String[] pfxLabels = {"None", "DLS", "CRT", "HDR", "Natural"};
+        final String[] pfxLabels = {getString(R.string.sidebar_none), "DLS", "CRT", "HDR", "Natural"};
         if (spPostFXMode != null) {
             ArrayAdapter<String> a = createSidebarSpinnerAdapter(pfxLabels);
             a.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -2506,7 +2518,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent event) {
-        if (isPaused && (drawerLayout == null || !drawerLayout.isDrawerOpen(GravityCompat.START))) return true;
+        if (isPaused && (drawerLayout == null || !drawerLayout.isDrawerOpen(GravityCompat.END))) return true;
         return super.dispatchTouchEvent(event);
     }
 

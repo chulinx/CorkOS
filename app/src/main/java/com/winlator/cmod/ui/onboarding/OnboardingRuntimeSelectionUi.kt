@@ -32,9 +32,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.winlator.cmod.R
 import com.winlator.cmod.core.ProtonPackageManager
 
 private val bundledRuntimeId = "bundled:${ProtonPackageManager.DEFAULT_IDENTIFIER}"
@@ -85,7 +87,7 @@ internal fun OnboardingRuntimeSelectionScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             item {
-                Text("Choose environment", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.onboarding_choose_environment), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
                 if (preparing) {
                     Spacer(Modifier.height(18.dp))
                     Surface(
@@ -95,7 +97,7 @@ internal fun OnboardingRuntimeSelectionScreen(
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                     ) {
                         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text("Preparing environment", fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.onboarding_preparing_environment), fontWeight = FontWeight.SemiBold)
                             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                         }
                     }
@@ -126,7 +128,7 @@ internal fun OnboardingRuntimeSelectionScreen(
                 item {
                     Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface) {
                         Text(
-                            "Install at least one Wine or Proton version to continue.",
+                            stringResource(R.string.onboarding_install_wine_hint),
                             Modifier.padding(16.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -142,7 +144,7 @@ internal fun OnboardingRuntimeSelectionScreen(
                     modifier = Modifier.weight(1f).height(48.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Back")
+                    Text(stringResource(R.string.action_back))
                 }
                 Button(
                     onClick = { if (selected.isNotBlank() && !preparing) onContinue(selected) },

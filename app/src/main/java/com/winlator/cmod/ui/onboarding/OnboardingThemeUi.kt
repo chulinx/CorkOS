@@ -20,8 +20,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.winlator.cmod.R
 import com.winlator.cmod.ui.theme.WinlatorThemeChoices
 import com.winlator.cmod.ui.theme.WinlatorThemeManager
 
@@ -46,7 +48,7 @@ internal fun OnboardingThemeScreen(
         ) {
             Column(Modifier.weight(0.8f)) {
                 Text(
-                    "Choose your theme",
+                    stringResource(R.string.onboarding_choose_theme),
                     style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -81,7 +83,7 @@ internal fun OnboardingThemeScreen(
         Spacer(Modifier.height(8.dp))
         Column(Modifier.widthIn(max = 620.dp)) {
             Text(
-                "Choose your theme",
+                stringResource(R.string.onboarding_choose_theme),
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.SemiBold
             )
@@ -111,7 +113,7 @@ private fun ThemeNavigationButtons(
     ) {
         if (onBack != null) {
             OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f)) {
-                Text("Back")
+                Text(stringResource(R.string.action_back))
             }
         }
         Button(onClick = onContinue, modifier = Modifier.weight(1f)) {

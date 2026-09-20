@@ -11,18 +11,35 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <ScrollView
-        android:id="@+id/SidebarScrollView"
-        android:layout_width="320dp"
+    <com.winlator.cmod.ui.theme.IngameSidebarDrawerLayout
+        android:id="@+id/SidebarDrawer"
+        android:layout_width="360dp"
         android:layout_height="match_parent"
-        android:layout_gravity="start"
-        android:background="@color/ingame_sidebar_background"
-        android:scrollbars="none"
-        android:fillViewport="true">
+        android:layout_gravity="end"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="10dp"
+        android:background="@drawable/ingame_drawer_bg"
+        android:elevation="24dp"
+        android:clipToOutline="true">
 
-        <include layout="@layout/left_sidebar" />
+        <!-- Fixed rail comes first in the hierarchy so findViewById() and listener wiring resolve
+             these visible controls rather than the hidden legacy copies inside the scroller. Its
+             elevation keeps it above the full-width ScrollView for touch dispatch. -->
+        <include layout="@layout/right_sidebar_rail" />
 
-    </ScrollView>
+        <ScrollView
+            android:id="@+id/SidebarScrollView"
+            android:layout_width="302dp"
+            android:layout_height="match_parent"
+            android:layout_gravity="start"
+            android:background="@android:color/transparent"
+            android:elevation="0dp"
+            android:scrollbars="none"
+            android:fillViewport="true">
+            <include layout="@layout/left_sidebar" />
+        </ScrollView>
+
+    </com.winlator.cmod.ui.theme.IngameSidebarDrawerLayout>
 
     <EditText
         android:id="@+id/XRTextInput"

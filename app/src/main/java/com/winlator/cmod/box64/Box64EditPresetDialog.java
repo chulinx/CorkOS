@@ -38,7 +38,7 @@ public class Box64EditPresetDialog {
 
         String initialName = preset != null
                 ? preset.name
-                : context.getString(R.string.preset) + "-" + Box64PresetManager.getNextPresetId(context, prefix);
+                : "Preset" + "-" + Box64PresetManager.getNextPresetId(context, prefix);
 
         List<PresetEditorVariable> variables = loadVariables();
         dialog = PresetEditorComposeDialog.create(

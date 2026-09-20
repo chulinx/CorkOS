@@ -681,5 +681,334 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="game_folder">Game Folder</string>
 
     <string name="magnifier_not_available">Magnifier is not available in DisplayX mode</string>
-</resources>
 
+    <!-- Profile ("Mine") page -->
+    <string name="edit_profile">Edit Profile</string>
+    <string name="nickname">Nickname</string>
+    <string name="about_you">About you</string>
+    <string name="about_you_hint">Tell us something about you</string>
+    <string name="save_changes">Save</string>
+    <string name="local_account">Local account</string>
+    <string name="playtime">Playtime</string>
+    <string name="game_count">Games</string>
+    <string name="my_containers">My Containers</string>
+    <string name="manage_containers">Manage containers</string>
+    <string name="add_container">Add container</string>
+    <string name="components">Components</string>
+    <string name="more">More</string>
+    <string name="runtime">Runtime</string>
+    <string name="uid">UID</string>
+    <string name="profile_bio_empty">No description yet</string>
+    <string name="storage_used">Storage used</string>
+
+    <!-- Library page -->
+    <string name="my_games">My games</string>
+    <string name="import_games">Import Games</string>
+    <string name="no_games_yet">No games yet. Import a game to get started.</string>
+    <string name="sort">Sort</string>
+    <string name="sort_recent">Recent</string>
+    <string name="sort_alpha">A–Z</string>
+    <string name="sort_playtime">Playtime</string>
+    <string name="search_games">Search games</string>
+    <string name="switch_to_list">Switch to list</string>
+    <string name="switch_to_grid">Switch to grid</string>
+    <string name="favorites">Favorites</string>
+    <string name="all_games">All</string>
+
+    <!-- Game detail page -->
+    <string name="play_now">Play</string>
+    <string name="game_intro">About this game</string>
+    <string name="related_actions">Actions</string>
+    <string name="enter_container">Enter container</string>
+    <string name="last_played">Last played</string>
+    <string name="resolution">Resolution</string>
+    <string name="executable">Executable</string>
+    <string name="container_label">Container</string>
+    <string name="runtime_environment">Runtime</string>
+    <string name="never">Never</string>
+    <string name="value_none">None</string>
+    <string name="playtime_unknown">Not played yet</string>
+
+    <!-- Shared actions -->
+    <string name="action_apply">Apply</string>
+    <string name="action_back">Back</string>
+    <string name="action_close">Close</string>
+    <string name="action_create_new">Create new</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_import">Import</string>
+    <string name="action_properties">Properties</string>
+    <string name="action_more_options">More options</string>
+    <string name="action_favorite">Favorite</string>
+    <string name="action_unfavorite">Unfavorite</string>
+    <string name="action_artwork">Artwork</string>
+    <string name="action_home_screen">Home screen</string>
+    <string name="action_remove_from_library">Remove from library</string>
+    <string name="runtime_wine_on_android">Wine on Android</string>
+
+    <!-- Orientation controls -->
+    <string name="orientation_lock">Lock screen orientation</string>
+    <string name="orientation_vertical">Vertical mode</string>
+    <string name="orientation_horizontal">Horizontal mode</string>
+
+    <!-- Game detail media pages -->
+    <string name="detail_media_cover">Cover</string>
+    <string name="detail_media_banner">Banner</string>
+
+    <!-- Settings sections -->
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_section_environments">Environments</string>
+    <string name="settings_section_presets">Presets</string>
+    <string name="settings_section_big_picture">Big Picture Mode</string>
+    <string name="settings_section_paths">Paths</string>
+    <string name="settings_containers_summary">Create and manage Windows environments</string>
+    <string name="settings_components_summary">Wine, Proton, DXVK, VKD3D and runtimes</string>
+    <string name="settings_capture_external_pointer">Capture External Pointer</string>
+    <string name="settings_disable_xinput">Disable Xinput (Used for Exclusive M/KB support)</string>
+    <string name="settings_enable_big_picture">Enable Big Picture Mode on App Launch</string>
+    <string name="settings_steamgrid_key_toggle">Set SteamGrid API Key? (Cover Art)</string>
+    <string name="settings_steamgrid_key">SteamGridDB API Key</string>
+    <string name="settings_winlator_path">Winlator Path</string>
+    <string name="settings_shortcut_export_path">Shortcut Export Path</string>
+    <string name="settings_contents_url">Downloadable Contents URL</string>
+    <string name="settings_install_soundfont">Install SoundFont</string>
+    <string name="settings_wine_debug_channels">Wine debug channels</string>
+    <string name="settings_search_channels">Search channels</string>
+    <string name="settings_no_channels_selected">No channels selected</string>
+    <string name="settings_preset_actions">Preset actions</string>
+
+    <!-- Language -->
+    <string name="settings_language">Language</string>
+    <string name="settings_language_title">App language</string>
+    <string name="settings_language_system">Follow system</string>
+    <string name="settings_language_zh">简体中文</string>
+    <string name="settings_language_en" translatable="false">English</string>
+
+    <!-- Theme picker -->
+    <string name="theme_picker_description">Choose the Winlator theme. Changes are applied immediately.</string>
+    <string name="theme_white">White</string>
+    <string name="theme_white_desc">Bright surfaces with dark text</string>
+    <string name="theme_black">Black</string>
+    <string name="theme_black_desc">Balanced dark theme · Default</string>
+    <string name="theme_amoled">AMOLED</string>
+    <string name="theme_amoled_desc">Pure black background for OLED displays</string>
+    <string name="theme_blue">Blue</string>
+    <string name="theme_blue_desc">Dark interface with cool blue accents</string>
+    <string name="theme_red">Red</string>
+    <string name="theme_red_desc">Dark interface with warm red accents</string>
+    <string name="theme_purple">Purple</string>
+    <string name="theme_purple_desc">Dark interface with rich purple accents</string>
+
+    <!-- Containers -->
+    <string name="containers_empty_title">No containers</string>
+    <string name="containers_empty_summary">Create a Windows environment for your games.</string>
+    <string name="containers_new">New container</string>
+    <string name="containers_properties">Container properties</string>
+    <string name="containers_removed">Container removed</string>
+    <string name="containers_duplicated">Container duplicated</string>
+    <string name="containers_remove_message">%1$s and its container files will be deleted.</string>
+
+    <!-- Input controls -->
+    <string name="controls_no_controllers">No controllers connected</string>
+    <string name="controls_add_profile">Add profile</string>
+    <string name="controls_edit_profile">Edit profile</string>
+    <string name="controls_duplicate_profile">Duplicate profile</string>
+    <string name="controls_remove_profile">Remove profile</string>
+    <string name="controls_remove_controller">Remove controller</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_choose_components">Choose components</string>
+    <string name="onboarding_component_installation">Component installation</string>
+    <string name="onboarding_install_local_driver">Install local driver</string>
+    <string name="onboarding_loading_catalog">Loading component catalog…</string>
+    <string name="onboarding_no_components">No components available in this category.</string>
+    <string name="onboarding_choose_environment">Choose environment</string>
+    <string name="onboarding_install_wine_hint">Install at least one Wine or Proton version to continue.</string>
+    <string name="onboarding_preparing_environment">Preparing environment</string>
+    <string name="onboarding_choose_theme">Choose your theme</string>
+    <string name="onboarding_welcome_title">Welcome to Winlator</string>
+    <string name="onboarding_welcome_subtitle">Your lightweight PC emulator for Android.</string>
+    <string name="onboarding_delete_component_confirm">Delete component?</string>
+    <string name="onboarding_delete_driver_confirm">Delete driver?</string>
+    <string name="onboarding_proton_in_use">Proton is in use</string>
+    <string name="onboarding_runtime_in_use">Runtime is in use</string>
+    <string name="onboarding_driver_files_removed">The installed driver files will be removed.</string>
+    <string name="onboarding_component_files_removed">The installed files will be removed from WinZ.</string>
+
+    <!-- Permissions -->
+    <string name="perm_all_files_title">All Files Access Required</string>
+    <string name="perm_okay">Okay</string>
+
+    <!-- Editors -->
+    <string name="container_settings">Container settings</string>
+    <string name="shortcut_settings">Shortcut settings</string>
+    <string name="custom_resolution">Custom resolution</string>
+    <string name="disabled_vulkan_extensions">Disabled Vulkan Extensions</string>
+    <string name="vulkan_extensions">Vulkan Extensions</string>
+    <string name="video_memory">Video Memory</string>
+    <string name="blacklisted_extensions">Blacklisted Extensions</string>
+    <string name="manage_installed_versions">Manage installed versions</string>
+    <string name="install_or_remove_components">Install or remove DXVK, VKD3D and emulator components</string>
+    <string name="choose_an_option">Choose an option</string>
+    <string name="swap_red_blue_channels">Swap red/blue channels</string>
+    <string name="container_name">Container name</string>
+    <string name="background_color">Background color</string>
+    <string name="choose_image">Choose image</string>
+    <string name="drive_letters">Drive letters</string>
+    <string name="no_custom_drives">No custom drives</string>
+    <string name="path_label">Path</string>
+    <string name="directx_wrapper">DirectX wrapper</string>
+    <string name="add_environment_variable">Add environment variable</string>
+    <string name="add_variable">Add variable</string>
+    <string name="no_environment_variables">No environment variables added.</string>
+    <string name="select_values">Select values</string>
+    <string name="help">Help</string>
+    <string name="add_source">Add Source</string>
+    <string name="driver_sources">Driver Sources</string>
+    <string name="available_drivers">Available Drivers</string>
+    <string name="select_variant">Select Variant</string>
+
+    <!-- File manager -->
+    <string name="file_manager">File Manager</string>
+    <string name="external_storage">External Storage</string>
+    <string name="no_containers">No Containers</string>
+    <string name="file_conflict">File Conflict</string>
+    <string name="rename">Rename</string>
+    <string name="replace">Replace</string>
+    <string name="calculating">Calculating…</string>
+    <string name="drive_c_not_initialized">Drive C: Not Initialized</string>
+    <string name="confirm_delete_file">Are you sure you want to delete %1$s?</string>
+
+    <!-- Big picture -->
+    <string name="cover_art_options">Cover Art Options</string>
+    <string name="disable_bg_music">Disable BG Music</string>
+    <string name="enable_bg_music">Enable BG Music</string>
+    <string name="select_display_mode">Select Display Mode</string>
+    <string name="not_set">Not Set</string>
+
+    <!-- Misc UI -->
+    <string name="action_download">Download</string>
+    <string name="action_done">Done</string>
+    <string name="select_a_container">Select a container</string>
+    <string name="select_profile_placeholder">-- Select Profile --</string>
+    <string name="view_details">View details</string>
+    <string name="calculating_storage">Calculating storage…</string>
+    <string name="clearing">Clearing…</string>
+    <string name="fps_limit">FPS Limit</string>
+    <string name="custom">Custom</string>
+    <string name="off">Off</string>
+    <string name="scheme_color">Scheme Color</string>
+    <string name="current_driver">Current Driver</string>
+    <string name="reshade_effect">ReShade effect</string>
+    <string name="dual_cell_correction">Dual-cell correction</string>
+    <string name="wallpaper_preview">Wallpaper preview</string>
+    <string name="wallpaper">Wallpaper</string>
+    <string name="running_notification">Winlator is running, do not kill or swipe this notification</string>
+    <string name="environment">Environment</string>
+    <string name="wallpaper_image">Wallpaper image</string>
+
+    <!-- Editor labels -->
+    <string name="async">Async</string>
+    <string name="async_cache">Async Cache</string>
+    <string name="bypass_x11">Bypass X11</string>
+    <string name="changes_apply_to_container">Changes apply to this container</string>
+    <string name="changes_saved_with_container">Changes are saved with this container</string>
+    <string name="controls_profile">Controls Profile</string>
+    <string name="desktop_background">Desktop Background</string>
+    <string name="desktop_theme">Desktop Theme</string>
+    <string name="disable_xinput">Disable XInput</string>
+    <string name="driver_present_mode">Driver Present Mode</string>
+    <string name="driver_version">Driver Version</string>
+    <string name="dxvk_hud">DXVK HUD</string>
+    <string name="enable_dinput">Enable DInput</string>
+    <string name="enable_xinput">Enable XInput</string>
+    <string name="exclusive_input">Exclusive Input</string>
+    <string name="hud">HUD</string>
+    <string name="locale_lc_all">Locale (LC_ALL)</string>
+    <string name="max_frame_latency">Max Frame Latency</string>
+    <string name="oboe_backend">Oboe backend</string>
+    <string name="oboe_latency">Oboe latency</string>
+    <string name="performance_mode">Performance mode</string>
+    <string name="precise_presentation">Precise presentation</string>
+    <string name="present_at_refresh_rate">Present at refresh rate</string>
+    <string name="present_mode">Present Mode</string>
+    <string name="relative_mouse">Relative Mouse</string>
+    <string name="renderer">Renderer</string>
+    <string name="renderer_driver">Renderer Driver</string>
+    <string name="rendering_mode">Rendering Mode</string>
+    <string name="section_audio">Audio</string>
+    <string name="section_general">General</string>
+    <string name="section_video">Video</string>
+    <string name="section_compatibility">Compatibility</string>
+    <string name="section_input">Input</string>
+    <string name="section_storage">Storage</string>
+    <string name="section_cpu">CPU</string>
+    <string name="section_components">Components</string>
+    <string name="section_startup_input">Startup &amp; Input</string>
+    <string name="submit_every_buffer">Submit every buffer</string>
+    <string name="surface_format">Surface format</string>
+    <string name="texture_filter">Texture Filter</string>
+    <string name="variable">Variable</string>
+    <string name="wine_proton">Wine / Proton</string>
+    <string name="wine_renderer">Wine Renderer</string>
+    <string name="winlator_hud">Winlator HUD</string>
+    <string name="container_files">Container files</string>
+    <!-- In-game right-edge sidebar -->
+    <string name="sidebar_rendering">Rendering</string>
+    <string name="sidebar_fps_limiter">FPS Limiter</string>
+    <string name="sidebar_super_resolution">Super Resolution</string>
+    <string name="sidebar_upscaler_mode">Upscaler Mode</string>
+    <string name="sidebar_sharpness">Sharpness</string>
+    <string name="sidebar_post_effect">Post Effect</string>
+    <string name="sidebar_reshade">ReShade</string>
+    <string name="sidebar_effect">Effect</string>
+    <string name="sidebar_strength">Strength</string>
+    <string name="sidebar_frame_generation">Frame Generation</string>
+    <string name="sidebar_save_preset">Save Preset</string>
+    <string name="sidebar_display_effects">Display and Effects</string>
+    <string name="sidebar_pip">Picture in Picture</string>
+    <string name="sidebar_toggle_fullscreen">Toggle Fullscreen</string>
+    <string name="sidebar_magnifier">Magnifier</string>
+    <string name="sidebar_soft_stretch">Soft Stretch</string>
+    <string name="sidebar_controls">Controls</string>
+    <string name="sidebar_touch_opacity">Touch Controls Opacity</string>
+    <string name="sidebar_show_keyboard">Show Keyboard</string>
+    <string name="sidebar_vibration">Vibration</string>
+    <string name="sidebar_relative_mouse">Relative Mouse</string>
+    <string name="sidebar_disable_mouse">Disable Mouse</string>
+    <string name="sidebar_hud">HUD</string>
+    <string name="sidebar_enable_hud">Enable HUD</string>
+    <string name="sidebar_style">Style</string>
+    <string name="sidebar_hud_metrics">HUD Metrics</string>
+    <string name="sidebar_fps">FPS</string>
+    <string name="sidebar_gpu">GPU</string>
+    <string name="sidebar_cpu">CPU</string>
+    <string name="sidebar_ram">RAM</string>
+    <string name="sidebar_batt_temp">Battery / Temp</string>
+    <string name="sidebar_renderer">Renderer</string>
+    <string name="sidebar_hud_size">HUD Size</string>
+    <string name="sidebar_hud_opacity">HUD Opacity</string>
+    <string name="sidebar_reset_hud">Reset HUD</string>
+    <string name="sidebar_show_logs">Show Logs</string>
+    <string name="sidebar_task_manager">Task Manager</string>
+    <string name="sidebar_memory">Memory</string>
+    <string name="sidebar_processes">Processes</string>
+    <string name="sidebar_new_task">+ New Task</string>
+    <string name="sidebar_performance_section">Performance</string>
+    <string name="sidebar_image_quality_section">Image quality</string>
+    <string name="sidebar_presets_section">Presets</string>
+    <string name="sidebar_general_section">General</string>
+    <string name="sidebar_appearance_section">Appearance</string>
+    <string name="sidebar_actions_section">Actions</string>
+    <string name="sidebar_classic">Classic</string>
+    <string name="sidebar_modern">Modern</string>
+    <string name="sidebar_preset_saved">Preset saved</string>
+    <string name="sidebar_none">None</string>
+    <string name="sidebar_gpu_name">GPU Name</string>
+    <string name="sidebar_gpu_usage">GPU Usage</string>
+    <string name="sidebar_cpu_usage">CPU Usage</string>
+    <string name="sidebar_cpu_temp">CPU Temp</string>
+    <string name="sidebar_power">Power</string>
+    <string name="sidebar_battery_temp">Battery Temp</string>
+    <string name="sidebar_charge_state">Charge State</string>
+    <string name="sidebar_process_count">Processes</string>
+</resources>

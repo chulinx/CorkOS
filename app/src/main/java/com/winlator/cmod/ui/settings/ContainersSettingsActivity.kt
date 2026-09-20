@@ -63,17 +63,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.winlator.cmod.core.AppLocale
+import com.winlator.cmod.R
 import com.winlator.cmod.XrActivity
 import com.winlator.cmod.XServerDisplayActivity
 import com.winlator.cmod.container.Container
 import com.winlator.cmod.container.ContainerManager
 import com.winlator.cmod.core.FileUtils
 import com.winlator.cmod.core.StringUtils
-import com.winlator.cmod.ui.applyAppFullscreen
+import com.winlator.cmod.ui.applySystemBars
+import com.winlator.cmod.ui.components.EmptyStateCard
 import com.winlator.cmod.ui.container.ContainerCreateComposeFragment
+import com.winlator.cmod.ui.theme.LocalWinlatorAccent
 import com.winlator.cmod.ui.theme.WinZTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -82,6 +87,10 @@ import java.io.File
 import java.util.ArrayDeque
 
 class ContainersSettingsActivity : AppCompatActivity() {
+
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
     private lateinit var root: FrameLayout
     private val containersState = mutableStateOf<List<Container>>(emptyList())
     private val propertiesState = mutableStateOf<Container?>(null)
@@ -89,7 +98,7 @@ class ContainersSettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        applyAppFullscreen(this)
+        applySystemBars(this)
         root = FrameLayout(this).apply { id = View.generateViewId() }
         setContentView(root)
 
@@ -106,7 +115,7 @@ class ContainersSettingsActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        applyAppFullscreen(this)
+        applySystemBars(this)
         refresh()
     }
 
@@ -153,7 +162,7 @@ class ContainersSettingsActivity : AppCompatActivity() {
         val container = manager.getContainerById(id) ?: return
         manager.duplicateContainerAsync(container) {
             refresh()
-            Toast.makeText(this, "Container duplicated", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.containers_duplicated), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -161,13 +170,13 @@ class ContainersSettingsActivity : AppCompatActivity() {
         val manager = ContainerManager(this)
         val container = manager.getContainerById(id) ?: return
         AppCompatAlertDialog.Builder(this)
-            .setTitle("Remove container?")
-            .setMessage("${container.name} and its container files will be deleted.")
+            .setTitle(getString(R.string.do_you_want_to_remove_this_container))
+            .setMessage(getString(R.string.containers_remove_message, container.name))
             .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton("Remove") { _, _ ->
+            .setPositiveButton(getString(R.string.remove)) { _, _ ->
                 manager.removeContainerAsync(container) {
                     refresh()
-                    Toast.makeText(this, "Container removed", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.containers_removed), Toast.LENGTH_SHORT).show()
                 }
             }
             .show()
@@ -207,28 +216,29 @@ private fun ContainersSettingsScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Containers") },
+                title = { Text(stringResource(R.string.containers)) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, null) } }
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAdd) { Icon(Icons.Outlined.Add, "New container") }
+            FloatingActionButton(onClick = onAdd) { Icon(Icons.Outlined.Add, stringResource(R.string.containers_new)) }
         }
     ) { padding ->
         if (containers.isEmpty()) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Surface(
-                        modifier = Modifier.size(74.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant
-                    ) {
-                        Box(contentAlignment = Alignment.Center) { Icon(Icons.Outlined.Dns, null, modifier = Modifier.size(36.dp)) }
-                    }
-                    Spacer(Modifier.height(14.dp))
-                    Text("No containers", style = MaterialTheme.typography.titleLarge)
-                    Text("Create a Windows environment for your games.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                EmptyStateCard(
+                    icon = Icons.Outlined.Add,
+                    title = stringResource(R.string.containers_empty_title),
+                    subtitle = stringResource(R.string.containers_empty_summary),
+                    actionLabel = stringResource(R.string.containers_new),
+                    onClick = onAdd
+                )
             }
         } else {
             LazyColumn(
@@ -259,26 +269,32 @@ private fun SettingsContainerCard(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(15.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface
     ) {
         Column {
             Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Surface(Modifier.size(50.dp), shape = RoundedCornerShape(13.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
-                    Box(contentAlignment = Alignment.Center) { Icon(Icons.Outlined.Dns, null, modifier = Modifier.size(26.dp)) }
+                Surface(Modifier.size(46.dp), shape = RoundedCornerShape(15.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+                    Box(contentAlignment = Alignment.Center) { Icon(Icons.Outlined.Dns, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
                 Spacer(Modifier.width(13.dp))
                 Column(Modifier.weight(1f)) {
                     Text(container.name, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text("${container.wineVersion} • ${container.screenSize}", color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        "${container.wineVersion} • ${container.screenSize}",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
+                Spacer(Modifier.width(10.dp))
                 Surface(
                     onClick = { onRun(container.id) },
-                    modifier = Modifier.size(46.dp),
-                    shape = RoundedCornerShape(13.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
+                    modifier = Modifier.size(44.dp),
+                    shape = CircleShape,
+                    color = LocalWinlatorAccent.current,
+                    contentColor = Color.White
                 ) {
                     Box(contentAlignment = Alignment.Center) { Icon(Icons.Outlined.PlayArrow, null) }
                 }
@@ -287,8 +303,8 @@ private fun SettingsContainerCard(
                 Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                ActionButton(Icons.Outlined.Edit, "Edit", Modifier.weight(1f)) { onEdit(container.id) }
-                ActionButton(Icons.Outlined.Info, "Properties", Modifier.weight(1f)) { onProperties(container.id) }
+                ActionButton(Icons.Outlined.Edit, stringResource(R.string.edit), Modifier.weight(1f)) { onEdit(container.id) }
+                ActionButton(Icons.Outlined.Info, stringResource(R.string.action_properties), Modifier.weight(1f)) { onProperties(container.id) }
                 ContainerMoreButton(
                     modifier = Modifier.weight(1f),
                     onDuplicate = { onDuplicate(container.id) },
@@ -327,10 +343,10 @@ private fun ContainerMoreButton(
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box(modifier) {
-        ActionButton(Icons.Outlined.MoreVert, "More", Modifier.fillMaxWidth()) { expanded = true }
+        ActionButton(Icons.Outlined.MoreVert, stringResource(R.string.more), Modifier.fillMaxWidth()) { expanded = true }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             DropdownMenuItem(
-                text = { Text("Duplicate") },
+                text = { Text(stringResource(R.string.duplicate)) },
                 leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
                 onClick = {
                     expanded = false
@@ -338,7 +354,7 @@ private fun ContainerMoreButton(
                 }
             )
             DropdownMenuItem(
-                text = { Text("Remove") },
+                text = { Text(stringResource(R.string.remove)) },
                 leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null) },
                 onClick = {
                     expanded = false
@@ -386,7 +402,7 @@ private fun ContainerPropertiesDialog(container: Container, onDismiss: () -> Uni
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Outlined.Storage, null) },
-        title = { Text("Container properties") },
+        title = { Text(stringResource(R.string.containers_properties)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(
@@ -405,14 +421,14 @@ private fun ContainerPropertiesDialog(container: Container, onDismiss: () -> Uni
                     ) {
                         CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)
                         Spacer(Modifier.width(12.dp))
-                        Text("Calculating storage…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.calculating_storage), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 } else {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            StorageValue("Drive C", driveSize)
-                            StorageValue("Cache", cacheSize)
-                            StorageValue("Total", totalSize, emphasize = true)
+                            StorageValue(stringResource(R.string.drive_c), driveSize)
+                            StorageValue(stringResource(R.string.cache), cacheSize)
+                            StorageValue(stringResource(R.string.total), totalSize, emphasize = true)
                         }
                         Surface(
                             modifier = Modifier.size(90.dp),
@@ -452,14 +468,14 @@ private fun ContainerPropertiesDialog(container: Container, onDismiss: () -> Uni
                 if (clearing) {
                     CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.width(8.dp))
-                    Text("Clearing…")
+                    Text(stringResource(R.string.clearing))
                 } else {
-                    Text("Clear cache")
+                    Text(stringResource(R.string.clear_cache))
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
         }
     )
 }

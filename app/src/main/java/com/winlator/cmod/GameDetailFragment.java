@@ -25,6 +25,9 @@ import com.winlator.cmod.core.FileUtils;
 import com.winlator.cmod.core.WineInfo;
 import com.winlator.cmod.ui.library.GameDetailCallbacks;
 import com.winlator.cmod.ui.library.GameDetailComposeHost;
+import com.winlator.cmod.ui.library.GameDetailModel;
+import com.winlator.cmod.ui.profile.PlaytimeSnapshot;
+import com.winlator.cmod.ui.profile.PlaytimeStats;
 import com.winlator.cmod.ui.shortcut.ShortcutSettingsComposeDialog;
 
 import java.io.File;
@@ -60,21 +63,10 @@ public class GameDetailFragment extends Fragment {
         }
 
         ((AppCompatActivity) requireActivity()).getSupportActionBar().setTitle(shortcut.name);
-        String baseName = FileUtils.getBasename(shortcut.file.getPath());
-        File banner = new File(Environment.getExternalStorageDirectory(),
-                "Winlator/banners/" + baseName + ".png");
-        File cover = new File(Environment.getExternalStorageDirectory(),
-                "Winlator/covers/" + baseName + ".png");
-        String artworkPath = banner.exists() ? banner.getPath() : cover.exists() ? cover.getPath() : null;
-        Bitmap fallback = shortcut.icon;
 
         View content = GameDetailComposeHost.create(
                 requireContext(),
-                shortcut.name,
-                buildEnvironmentSubtitle(),
-                artworkPath,
-                fallback,
-                "1".equals(shortcut.getExtra("favorite", "0")),
+                buildModel(),
                 new GameDetailCallbacks() {
                     @Override
                     public void onPlay() {
@@ -109,13 +101,57 @@ public class GameDetailFragment extends Fragment {
                             if (shortcut.file.delete()) getParentFragmentManager().popBackStack();
                         });
                     }
+
+                    @Override
+                    public void onNoteChanged(String note) {
+                        shortcut.putExtra("note", note == null ? "" : note);
+                        shortcut.saveData();
+                    }
                 }
         );
         content.post(this::applyDetailChrome);
         return content;
     }
 
-    private String buildEnvironmentSubtitle() {
+    private GameDetailModel buildModel() {
+        String baseName = FileUtils.getBasename(shortcut.file.getPath());
+        File root = Environment.getExternalStorageDirectory();
+        File banner = new File(root, "Winlator/banners/" + baseName + ".png");
+        File cover = new File(root, "Winlator/covers/" + baseName + ".png");
+        File userIcon = new File(root, "Winlator/icons/" + baseName + ".user.png");
+        File autoIcon = new File(root, "Winlator/icons/" + baseName + ".png");
+        String iconPath = userIcon.exists() ? userIcon.getPath()
+                : (autoIcon.exists() ? autoIcon.getPath() : null);
+
+        PlaytimeSnapshot playtime = PlaytimeStats.load(requireContext());
+        long lastRunAt = 0L;
+        try {
+            lastRunAt = Long.parseLong(shortcut.getExtra("lastRunAt", "0"));
+        } catch (NumberFormatException ignored) {
+        }
+
+        return new GameDetailModel(
+                shortcut.name,
+                shortcut.container != null ? shortcut.container.getName() : "",
+                buildRuntimeLabel(),
+                buildRendererLabel(),
+                shortcut.container != null && shortcut.container.getEmulator() != null
+                        ? shortcut.container.getEmulator() : "Box64",
+                shortcut.container != null ? shortcut.container.getScreenSize() : "",
+                shortcut.path != null ? shortcut.path : "",
+                cover.exists() ? cover.getPath() : null,
+                banner.exists() ? banner.getPath() : null,
+                iconPath,
+                shortcut.icon,
+                "1".equals(shortcut.getExtra("favorite", "0")),
+                playtime.playtimeMillisFor(shortcut.name),
+                playtime.playCountFor(shortcut.name),
+                lastRunAt,
+                shortcut.getExtra("note", "")
+        );
+    }
+
+    private String buildRuntimeLabel() {
         String runtime = shortcut.container.getWineVersion();
         try {
             ContentsManager contents = new ContentsManager(requireContext());
@@ -124,12 +160,21 @@ public class GameDetailFragment extends Fragment {
             String version = info.fullVersion();
             if (version.endsWith(".0")) version = version.substring(0, version.length() - 2);
             runtime = ("proton".equalsIgnoreCase(info.type) ? "Proton " : "Wine ") + version + " " + info.getArch();
-        } catch (Exception ignored) {}
-        String renderer = shortcut.getUseDisplayX() ? "DisplayX" : shortcut.getRendererNative() ? "EGL" : "Vulkan";
-        return runtime + "  •  " + renderer;
+        } catch (Exception ignored) {
+        }
+        return runtime;
+    }
+
+    private String buildRendererLabel() {
+        return shortcut.getUseDisplayX() ? "DisplayX" : shortcut.getRendererNative() ? "EGL" : "Vulkan";
     }
 
     private void runShortcut() {
+        Activity activity = requireActivity();
+        GameLaunchTransition.show(activity, shortcut, this::launchShortcutNow);
+    }
+
+    private void launchShortcutNow() {
         Activity activity = requireActivity();
         if (!XrActivity.isEnabled(requireContext())) {
             Intent intent = new Intent(activity, XServerDisplayActivity.class);
@@ -166,6 +211,8 @@ public class GameDetailFragment extends Fragment {
         if (isLandscape()) {
             activity.setBottomNavigationVisible(false);
             activity.setMainToolbarVisible(false);
+        } else {
+            activity.setMainToolbarVisible(true);
         }
     }
 
@@ -173,13 +220,5 @@ public class GameDetailFragment extends Fragment {
     public void onResume() {
         super.onResume();
         applyDetailChrome();
-    }
-
-    @Override
-    public void onPause() {
-        if (!isLandscape() && getActivity() instanceof MainActivity) {
-            ((MainActivity) getActivity()).setDetailMode(false);
-        }
-        super.onPause();
     }
 }

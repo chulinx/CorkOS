@@ -36,7 +36,7 @@ public class FEXCoreEditPresetDialog {
 
         String initialName = preset != null
                 ? preset.name
-                : context.getString(R.string.preset) + "-" + FEXCorePresetManager.getNextPresetId(context);
+                : "Preset" + "-" + FEXCorePresetManager.getNextPresetId(context);
 
         List<PresetEditorVariable> variables = loadVariables();
         dialog = PresetEditorComposeDialog.create(

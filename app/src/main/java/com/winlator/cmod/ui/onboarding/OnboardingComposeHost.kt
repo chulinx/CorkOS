@@ -20,7 +20,7 @@ import com.winlator.cmod.core.DefaultVersion
 import com.winlator.cmod.core.GPUInformation
 import com.winlator.cmod.core.WineInfo
 import com.winlator.cmod.fexcore.FEXCorePreset
-import com.winlator.cmod.ui.applyAppFullscreen
+import com.winlator.cmod.ui.applySystemBars
 import com.winlator.cmod.ui.settings.cleanContainerEnvironment
 import com.winlator.cmod.ui.theme.WinZTheme
 import org.json.JSONObject
@@ -133,7 +133,7 @@ object OnboardingComposeHost {
             containerReady
         )
 
-        applyAppFullscreen(activity)
+        applySystemBars(activity)
         activity.setContent {
             WinZTheme {
                 OnboardingFlow(

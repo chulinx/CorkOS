@@ -44,6 +44,7 @@ import androidx.preference.PreferenceManager;
 
 import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.winlator.cmod.core.AppLocale;
 import com.winlator.cmod.FileManagerFragment;
 import com.winlator.cmod.R;
 import com.winlator.cmod.contentdialog.ContentDialog;
@@ -60,6 +61,11 @@ import java.io.File;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
+
+    @Override
+    protected void attachBaseContext(android.content.Context newBase) {
+        super.attachBaseContext(AppLocale.wrap(newBase));
+    }
     public static final @IntRange(from = 1, to = 19) byte CONTAINER_PATTERN_COMPRESSION_LEVEL = 9;
     public static final int PERMISSION_WRITE_EXTERNAL_STORAGE_REQUEST_CODE = 500;
     public static final int PERMISSION_POST_NOTIFICATIONS_REQUEST_CODE = 501;
@@ -118,7 +124,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
 
         super.onCreate(savedInstanceState);
-        applyImmersiveMode();
+        showSystemBars();
 
         if (!sharedPreferences.getBoolean(OnboardingActivity.PREF_ONBOARDING_COMPLETE, false)) {
             startActivity(new Intent(this, OnboardingActivity.class));
@@ -150,14 +156,13 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             if (syncingBottomNavigation) return true;
             int target;
             if (item.getItemId() == R.id.bottom_nav_library) target = R.id.main_menu_shortcuts;
-            else if (item.getItemId() == R.id.bottom_nav_containers) target = R.id.main_menu_containers;
-            else if (item.getItemId() == R.id.bottom_nav_controls) target = R.id.main_menu_input_controls;
-            else if (item.getItemId() == R.id.bottom_nav_settings) target = R.id.main_menu_settings;
+            else if (item.getItemId() == R.id.bottom_nav_profile) target = R.id.main_menu_profile;
             else return false;
             MenuItem destination = navigationView.getMenu().findItem(target);
             navigationView.setCheckedItem(target);
             return onNavigationItemSelected(destination);
         });
+        getSupportFragmentManager().addOnBackStackChangedListener(this::syncChromeForCurrentFragment);
         updateStorageFooter();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             getWindow().setStatusBarColor(Color.BLACK);
@@ -191,15 +196,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             navigationView.setCheckedItem(R.id.main_menu_input_controls);
         } else {
             int selectedMenuItemId = intent.getIntExtra("selected_menu_item_id", 0);
-            int menuItemId;
-            if (selectedMenuItemId > 0) {
-                menuItemId = selectedMenuItemId;
-            } else {
-                List<Shortcut> shortcuts = containerManager.loadShortcuts();
-                menuItemId = (shortcuts != null && !shortcuts.isEmpty())
-                        ? R.id.main_menu_shortcuts
-                        : R.id.main_menu_containers;
-            }
+            int menuItemId = selectedMenuItemId > 0 ? selectedMenuItemId : R.id.main_menu_shortcuts;
 
             if (actionBar != null) actionBar.setDisplayHomeAsUpEnabled(false);
             onNavigationItemSelected(navigationView.getMenu().findItem(menuItemId));
@@ -231,14 +228,14 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     private void showAllFilesAccessDialog() {
         new AlertDialog.Builder(this)
-                .setTitle("All Files Access Required")
+                .setTitle(getString(R.string.perm_all_files_title))
                 .setMessage("In order to grant access to additional storage devices such as USB storage device, the All Files Access permission must be granted. Press Okay to grant All Files Access in your Android Settings.")
-                .setPositiveButton("Okay", (dialog, which) -> {
+                .setPositiveButton(getString(R.string.perm_okay), (dialog, which) -> {
                     Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
                     intent.setData(Uri.parse("package:" + getPackageName()));
                     startActivity(intent);
                 })
-                .setNegativeButton("Cancel", null)
+                .setNegativeButton(getString(R.string.cancel), null)
                 .show();
     }
 
@@ -370,32 +367,111 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         setDetailMode(false);
         selectBottomDestination(item.getItemId());
+
+        if (item.getItemId() == R.id.main_menu_about) {
+            showAboutDialog();
+            return true;
+        }
+
+        Fragment fragment = createFragmentForDestination(item.getItemId());
+        if (fragment == null) return true;
+
+        // Tapping the already-selected root tab is intentionally a no-op. In particular, do not
+        // recreate the Fragment or replay its transition animation.
         FragmentManager fragmentManager = getSupportFragmentManager();
+        if (tabIndexForDestination(item.getItemId()) >= 0
+                && tabIndexForDestination(item.getItemId()) == tabIndexForFragment(
+                        fragmentManager.findFragmentById(R.id.FLFragmentContainer))) {
+            return true;
+        }
+
+
         if (fragmentManager.getBackStackEntryCount() > 0) {
             fragmentManager.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
         }
 
-        switch (item.getItemId()) {
-            case R.id.main_menu_shortcuts:
-                show(new ShortcutsFragment(), false);
-                break;
-            case R.id.main_menu_containers:
-                show(new ContainersFragment(), false);
-                break;
-            case R.id.main_menu_input_controls:
-                show(InputControlsFragment.newInstance(selectedProfileId), false);
-                break;
-            case R.id.main_menu_file_manager:
-                show(new FileManagerFragment(), false);
-                break;
-            case R.id.main_menu_settings:
-                show(new SettingsFragment(), false);
-                break;
-            case R.id.main_menu_about:
-                showAboutDialog();
-                break;
+        // Switching between the two bottom tabs animates like the reference app: the pages slide
+        // horizontally in the direction of travel with a light cross-fade. Other destinations keep
+        // the vertical transition.
+        int targetTab = tabIndexForDestination(item.getItemId());
+        int currentTab = tabIndexForFragment(fragmentManager.findFragmentById(R.id.FLFragmentContainer));
+        if (targetTab >= 0 && currentTab >= 0 && targetTab != currentTab) {
+            showTab(fragment, targetTab < currentTab);
+        } else {
+            show(fragment, false);
         }
+        syncChromeForCurrentFragment();
         return true;
+    }
+
+    /** Position of a main tab in the bottom bar: library = 0, mine = 1; -1 for anything else. */
+    private static int tabIndexForDestination(int menuItemId) {
+        if (menuItemId == R.id.main_menu_shortcuts) return 0;
+        if (menuItemId == R.id.main_menu_profile) return 1;
+        return -1;
+    }
+
+    private static int tabIndexForFragment(Fragment fragment) {
+        if (fragment instanceof ShortcutsFragment) return 0;
+        if (fragment instanceof ProfileFragment) return 1;
+        return -1;
+    }
+
+    private Fragment createFragmentForDestination(int menuItemId) {
+        switch (menuItemId) {
+            case R.id.main_menu_shortcuts:
+                return new ShortcutsFragment();
+            case R.id.main_menu_profile:
+                return new ProfileFragment();
+            case R.id.main_menu_containers:
+                return new ContainersFragment();
+            case R.id.main_menu_input_controls:
+                return InputControlsFragment.newInstance(selectedProfileId);
+            case R.id.main_menu_file_manager:
+                return new FileManagerFragment();
+            case R.id.main_menu_settings:
+                return new SettingsFragment();
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Opens a page that belongs to the currently selected tab (the entries listed inside "Mine").
+     * Unlike {@link #onNavigationItemSelected} it pushes onto the back stack so the user lands back
+     * on the tab they came from, and it reveals the toolbar because the tab roots hide it.
+     */
+    public void navigateToSubDestination(int menuItemId) {
+        if (menuItemId == R.id.main_menu_about) {
+            showAboutDialog();
+            return;
+        }
+
+        Fragment fragment = createFragmentForDestination(menuItemId);
+        if (fragment == null) return;
+
+        setMainToolbarVisible(true);
+        getSupportFragmentManager().beginTransaction()
+                .setCustomAnimations(R.anim.slide_in_up, R.anim.slide_out_down,
+                        R.anim.slide_in_down, R.anim.slide_out_up)
+                .addToBackStack(null)
+                .replace(R.id.FLFragmentContainer, fragment)
+                .commit();
+        // The back stack listener re-derives the chrome once this transaction is applied.
+    }
+
+    /**
+     * The two tab roots (library / mine) own the whole screen, everything else is a sub page with a
+     * back arrow. Deriving the chrome from the current fragment keeps this correct after a back
+     * press, which used to leave the bottom bar in the wrong state.
+     */
+    private void syncChromeForCurrentFragment() {
+        Fragment current = getSupportFragmentManager().findFragmentById(R.id.FLFragmentContainer);
+        // Null while a transaction is still being applied — leave the chrome alone.
+        if (current == null) return;
+        boolean topLevel = current instanceof ShortcutsFragment || current instanceof ProfileFragment;
+        setDetailMode(!topLevel);
+        setMainToolbarVisible(!topLevel);
     }
 
 
@@ -403,9 +479,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         if (bottomNavigation == null) return;
         int bottomId = 0;
         if (menuItemId == R.id.main_menu_shortcuts) bottomId = R.id.bottom_nav_library;
-        else if (menuItemId == R.id.main_menu_containers) bottomId = R.id.bottom_nav_containers;
-        else if (menuItemId == R.id.main_menu_input_controls) bottomId = R.id.bottom_nav_controls;
-        else if (menuItemId == R.id.main_menu_settings) bottomId = R.id.bottom_nav_settings;
+        else if (menuItemId == R.id.main_menu_profile) bottomId = R.id.bottom_nav_profile;
+        // Pages reached from inside "Mine" (settings, input controls, ...) keep the current tab.
         if (bottomId != 0 && bottomNavigation.getSelectedItemId() != bottomId) {
             syncingBottomNavigation = true;
             bottomNavigation.setSelectedItemId(bottomId);
@@ -429,20 +504,24 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         onNavigationItemSelected(destination);
     }
 
-    private void applyImmersiveMode() {
-        getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                        | View.SYSTEM_UI_FLAG_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+    /**
+     * The main UI keeps the system bars visible so the status bar (clock / battery / notifications)
+     * stays readable. In-game screens use {@code AppThemeFullscreen} and stay immersive instead.
+     */
+    private void showSystemBars() {
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
     }
 
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (hasFocus) applyImmersiveMode();
+        if (hasFocus) showSystemBars();
+    }
+
+    @Override
+    public void onConfigurationChanged(@NonNull android.content.res.Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        getWindow().getDecorView().post(this::syncChromeForCurrentFragment);
     }
 
     public void setDetailMode(boolean detail) {
@@ -456,18 +535,30 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     private void show(Fragment fragment, boolean reverse) {
         FragmentManager fragmentManager = getSupportFragmentManager();
+        // commitNow so syncChromeForCurrentFragment() can see the new fragment straight away.
         if (reverse) {
             fragmentManager.beginTransaction()
                     .setCustomAnimations(R.anim.slide_in_down, R.anim.slide_out_up)
                     .replace(R.id.FLFragmentContainer, fragment)
-                    .commit();
+                    .commitNow();
         } else {
             fragmentManager.beginTransaction()
                     .setCustomAnimations(R.anim.slide_in_up, R.anim.slide_out_down)
                     .replace(R.id.FLFragmentContainer, fragment)
-                    .commit();
+                    .commitNow();
         }
 
+        drawerLayout.closeDrawer(GravityCompat.START);
+    }
+
+    /** Horizontal slide + cross-fade used when switching between the two bottom tabs. */
+    private void showTab(Fragment fragment, boolean toLeft) {
+        int enter = toLeft ? R.anim.tab_in_left : R.anim.tab_in_right;
+        int exit = toLeft ? R.anim.tab_out_right : R.anim.tab_out_left;
+        getSupportFragmentManager().beginTransaction()
+                .setCustomAnimations(enter, exit)
+                .replace(R.id.FLFragmentContainer, fragment)
+                .commitNow();
         drawerLayout.closeDrawer(GravityCompat.START);
     }
 

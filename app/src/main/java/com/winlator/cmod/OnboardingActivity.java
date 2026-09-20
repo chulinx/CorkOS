@@ -21,6 +21,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.preference.PreferenceManager;
 
+import com.winlator.cmod.core.AppLocale;
 import com.winlator.cmod.box64.Box64Preset;
 import com.winlator.cmod.container.Container;
 import com.winlator.cmod.container.ContainerManager;
@@ -63,6 +64,11 @@ import okhttp3.Request;
 import okhttp3.Response;
 
 public class OnboardingActivity extends AppCompatActivity {
+
+    @Override
+    protected void attachBaseContext(android.content.Context newBase) {
+        super.attachBaseContext(AppLocale.wrap(newBase));
+    }
     public static final String PREF_ONBOARDING_COMPLETE = "winz_onboarding_complete";
     public static final String EXTRA_COMPONENT_MANAGER = "component_manager";
     public static final String EXTRA_AUTO_INSTALL_TYPE = "auto_install_type";
@@ -260,7 +266,7 @@ public class OnboardingActivity extends AppCompatActivity {
         String using = WineRuntimeGuard.getContainerUsing(this, WineInfo.MAIN_WINE_VERSION.identifier());
         if (using != null) {
             new AlertDialog.Builder(this)
-                    .setTitle("Proton is in use")
+                    .setTitle(getString(R.string.onboarding_proton_in_use))
                     .setMessage(BUNDLED_RUNTIME_NAME + " cannot be deleted because it is used by " + using + ".")
                     .setPositiveButton(android.R.string.ok, null)
                     .show();
@@ -270,7 +276,7 @@ public class OnboardingActivity extends AppCompatActivity {
                 .setTitle("Delete " + BUNDLED_RUNTIME_NAME + "?")
                 .setMessage("The bundled Proton files will be removed. You can install them again later.")
                 .setNegativeButton(android.R.string.cancel, null)
-                .setPositiveButton("Delete", (dialog, which) -> removeBundledRuntime())
+                .setPositiveButton(getString(R.string.action_delete), (dialog, which) -> removeBundledRuntime())
                 .show();
     }
 
@@ -630,10 +636,10 @@ public class OnboardingActivity extends AppCompatActivity {
     private void requestRemoveComponent(String componentId) {
         if (componentId.startsWith("adrenotools:")) {
             new AlertDialog.Builder(this)
-                    .setTitle("Delete driver?")
-                    .setMessage("The installed driver files will be removed.")
+                    .setTitle(getString(R.string.onboarding_delete_driver_confirm))
+                    .setMessage(getString(R.string.onboarding_driver_files_removed))
                     .setNegativeButton(android.R.string.cancel, null)
-                    .setPositiveButton("Delete", (d, w) -> removeDriver(componentId.substring("adrenotools:".length())))
+                    .setPositiveButton(getString(R.string.action_delete), (d, w) -> removeDriver(componentId.substring("adrenotools:".length())))
                     .show();
             return;
         }
@@ -647,17 +653,17 @@ public class OnboardingActivity extends AppCompatActivity {
         if (!WineRuntimeGuard.canRemove(this, profile)) {
             String using = WineRuntimeGuard.getContainerUsing(this, ContentsManager.getEntryName(profile));
             new AlertDialog.Builder(this)
-                    .setTitle("Runtime is in use")
+                    .setTitle(getString(R.string.onboarding_runtime_in_use))
                     .setMessage(profile.verName + " cannot be deleted because it is used by " + using + ".")
                     .setPositiveButton(android.R.string.ok, null)
                     .show();
             return;
         }
         new AlertDialog.Builder(this)
-                .setTitle("Delete component?")
-                .setMessage("The installed files will be removed from WinZ.")
+                .setTitle(getString(R.string.onboarding_delete_component_confirm))
+                .setMessage(getString(R.string.onboarding_component_files_removed))
                 .setNegativeButton(android.R.string.cancel, null)
-                .setPositiveButton("Delete", (d, w) -> removeContent(profile, componentId))
+                .setPositiveButton(getString(R.string.action_delete), (d, w) -> removeContent(profile, componentId))
                 .show();
     }
 
@@ -666,17 +672,17 @@ public class OnboardingActivity extends AppCompatActivity {
         String using = WineRuntimeGuard.getContainerUsing(this, identifier);
         if (using != null) {
             new AlertDialog.Builder(this)
-                    .setTitle("Runtime is in use")
+                    .setTitle(getString(R.string.onboarding_runtime_in_use))
                     .setMessage(item.name + " cannot be deleted because it is used by " + using + ".")
                     .setPositiveButton(android.R.string.ok, null)
                     .show();
             return;
         }
         new AlertDialog.Builder(this)
-                .setTitle("Delete component?")
-                .setMessage("The installed files will be removed from WinZ.")
+                .setTitle(getString(R.string.onboarding_delete_component_confirm))
+                .setMessage(getString(R.string.onboarding_component_files_removed))
                 .setNegativeButton(android.R.string.cancel, null)
-                .setPositiveButton("Delete", (d, w) -> {
+                .setPositiveButton(getString(R.string.action_delete), (d, w) -> {
                     if (installBusy) return;
                     installBusy = true;
                     composeController.setInstallBusy(componentId, true);

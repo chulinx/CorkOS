@@ -48,14 +48,14 @@ public class DriverDownloadDialog {
 
     public void show() {
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setTitle("Available Drivers"); // English
+        builder.setTitle(context.getString(R.string.available_drivers)); // English
 
         recyclerView = new RecyclerView(context);
         recyclerView.setBackgroundColor(Color.BLACK);
         recyclerView.setLayoutManager(new LinearLayoutManager(context));
 
         builder.setView(recyclerView);
-        builder.setNegativeButton("Back", null); // English
+        builder.setNegativeButton(context.getString(R.string.action_back), null); // English
 
         dialog = builder.create();
         dialog.show();
@@ -139,7 +139,7 @@ public class DriverDownloadDialog {
             }
 
             new AlertDialog.Builder(context)
-                .setTitle("Select Variant")
+                .setTitle(context.getString(R.string.select_variant))
                 .setItems(assetNames, (dialogInterface, which) -> {
                     startDownload(item.assets.get(which));
                 })

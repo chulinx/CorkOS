@@ -51,6 +51,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -154,11 +155,11 @@ private fun PresetEditorScreen(
                     onValueChange = { name = it },
                     enabled = !readOnly,
                     singleLine = true,
-                    label = { Text("Preset") },
+                    label = { Text(stringResource(R.string.preset)) },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Text(
-                    "Environment variables",
+                    stringResource(R.string.environment_variables),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 18.dp, bottom = 7.dp)
@@ -195,7 +196,7 @@ private fun PresetEditorScreen(
                     modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    TextButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("Cancel") }
+                    TextButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.cancel)) }
                     Button(
                         onClick = {
                             val cleanName = name.trim().replace(Regex("[,|]+"), "")
@@ -203,7 +204,7 @@ private fun PresetEditorScreen(
                         },
                         enabled = !readOnly && name.isNotBlank(),
                         modifier = Modifier.weight(1f)
-                    ) { Text("Save") }
+                    ) { Text(stringResource(R.string.save)) }
                 }
             }
         }
@@ -286,7 +287,7 @@ private fun PresetVariableRow(
                 IconButton(onClick = onHelp, modifier = Modifier.size(36.dp)) {
                     Icon(
                         Icons.Outlined.HelpOutline,
-                        contentDescription = "Help",
+                        contentDescription = stringResource(R.string.help),
                         modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )

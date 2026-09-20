@@ -11,8 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import com.winlator.cmod.MainActivity
-import com.winlator.cmod.ui.LibraryToolbarActions
-import com.winlator.cmod.ui.applyAppFullscreen
+import com.winlator.cmod.ui.applySystemBars
 import com.winlator.cmod.ui.theme.WinZTheme
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -27,7 +26,8 @@ data class LibraryItem(
     val iconPath: String?,
     val fallbackIcon: Bitmap?,
     val favorite: Boolean,
-    val lastRunAt: Long
+    val lastRunAt: Long,
+    val playtimeMillis: Long = 0L
 )
 
 @Stable
@@ -37,6 +37,15 @@ interface LibraryCallbacks {
     fun onGridViewChanged(gridView: Boolean)
     fun onAction(shortcutPath: String, action: String)
     fun onArtworkNeeded(shortcutPath: String, kind: String)
+
+    /** Opens the file manager to import a new game (the "Import games" source card). */
+    fun onOpenImport()
+
+    /** Opens the container manager (the "Containers" source card). */
+    fun onOpenContainers()
+
+    /** Opens the runtime component manager (the "Components" source card). */
+    fun onOpenComponents()
 }
 
 class LibraryComposeController internal constructor(
@@ -95,8 +104,7 @@ object LibraryComposeHost {
         callbacks: LibraryCallbacks
     ): LibraryComposeBinding {
         val activity = context as? MainActivity
-        applyAppFullscreen(activity)
-        activity?.let(LibraryToolbarActions::install)
+        applySystemBars(activity)
 
         val items = mutableStateOf<List<LibraryItem>>(emptyList())
         val grid = mutableStateOf(initialGridView)
@@ -116,10 +124,10 @@ object LibraryComposeHost {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
                 WinZTheme {
-                    LibraryRootWithoutEmptyDescription(
+                    LibraryRoot(
                         items.value,
                         grid.value,
-                        query.value,
+                        query,
                         selectedShortcutPath,
                         callbacks
                     )
@@ -131,3 +139,6 @@ object LibraryComposeHost {
 }
 
 internal enum class LibraryFilter { All, Favorites, Recent }
+
+/** Sort order exposed by the library header control. */
+internal enum class LibrarySort { Recent, Alpha, Playtime }

@@ -6,6 +6,7 @@ import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import androidx.appcompat.app.AppCompatActivity;
+import com.winlator.cmod.core.AppLocale;
 import com.winlator.cmod.inputcontrols.Binding;
 import com.winlator.cmod.inputcontrols.ControlsProfile;
 import com.winlator.cmod.inputcontrols.ExternalController;
@@ -21,6 +22,11 @@ import java.util.Arrays;
 import java.util.List;
 
 public class ExternalControllerBindingsActivity extends AppCompatActivity {
+
+    @Override
+    protected void attachBaseContext(android.content.Context newBase) {
+        super.attachBaseContext(AppLocale.wrap(newBase));
+    }
     private ControlsProfile profile;
     private ExternalController controller;
     private final ExternalControllerBindingsState screenState = new ExternalControllerBindingsState();

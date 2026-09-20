@@ -43,6 +43,7 @@ import androidx.recyclerview.widget.SnapHelper;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.winlator.cmod.core.AppLocale;
 import com.winlator.cmod.R;
 import com.winlator.cmod.bigpicture.BigPictureAdapter;
 import com.winlator.cmod.bigpicture.CarouselItemDecoration;
@@ -83,6 +84,11 @@ import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.Toast;
 
 public class BigPictureActivity extends AppCompatActivity {
+
+    @Override
+    protected void attachBaseContext(android.content.Context newBase) {
+        super.attachBaseContext(AppLocale.wrap(newBase));
+    }
     private ImageView coverArtView;
     private TextView gameTitleView, graphicsDriverView, graphicsDriverVersionView, dxWrapperView, dxWrapperConfigView, audioDriverView, box64PresetView, playCountView, playtimeView;
     private RecyclerView recyclerView;
@@ -606,9 +612,9 @@ public class BigPictureActivity extends AppCompatActivity {
 
     private void updateBgMusicButtonText(Button button, boolean isEnabled) {
         if (isEnabled) {
-            button.setText("Disable BG Music");
+            button.setText(getString(R.string.disable_bg_music));
         } else {
-            button.setText("Enable BG Music");
+            button.setText(getString(R.string.enable_bg_music));
         }
     }
 
@@ -729,7 +735,7 @@ public class BigPictureActivity extends AppCompatActivity {
 
     private void showCoverArtOptionsDialog() {
         new androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle("Cover Art Options")
+                .setTitle(getString(R.string.cover_art_options))
                 .setItems(new CharSequence[]{"Remove Custom Cover Art", "Upload New Cover Art"}, (dialog, which) -> {
                     switch (which) {
                         case 0: // Remove Custom Cover Art
@@ -740,7 +746,7 @@ public class BigPictureActivity extends AppCompatActivity {
                             break;
                     }
                 })
-                .setNegativeButton("Cancel", null)
+                .setNegativeButton(getString(R.string.cancel), null)
                 .show();
     }
 
@@ -909,7 +915,7 @@ public class BigPictureActivity extends AppCompatActivity {
         } else if (!containerValue.isEmpty()) {
             textView.setText(containerValue); // Fallback to the container's value
         } else {
-            textView.setText("Not Set"); // Fallback if neither are available
+            textView.setText(getString(R.string.not_set)); // Fallback if neither are available
         }
     }
 
@@ -920,7 +926,7 @@ public class BigPictureActivity extends AppCompatActivity {
         } else if (!containerValue.isEmpty()) {
             textView.setText(label + containerValue); // Fallback to the container's value
         } else {
-            textView.setText(label + "Not Set"); // Fallback if neither are available
+            textView.setText(label + getString(R.string.not_set)); // Fallback if neither are available
         }
     }
 
@@ -1091,7 +1097,7 @@ public class BigPictureActivity extends AppCompatActivity {
 
                     String[] displayOptions = {"Center", "Stretch", "Tile"};
                     new AlertDialog.Builder(this)
-                            .setTitle("Select Display Mode")
+                            .setTitle(getString(R.string.select_display_mode))
                             .setItems(displayOptions, (dialog, which) -> {
                                 editor.putString(WALLPAPER_DISPLAY_PREF_KEY, displayOptions[which].toLowerCase());
                                 editor.apply();

@@ -20,8 +20,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.winlator.cmod.R
 
 @Composable
 internal fun OnboardingAccessScreen(back: () -> Unit, next: () -> Unit) {
@@ -40,7 +42,7 @@ internal fun OnboardingAccessScreen(back: () -> Unit, next: () -> Unit) {
                 Text(action)
             }
             Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = back, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Back") }
+            OutlinedButton(onClick = back, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text(stringResource(R.string.action_back)) }
         }
     }
 }

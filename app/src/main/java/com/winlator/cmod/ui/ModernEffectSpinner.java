@@ -69,7 +69,7 @@ public class ModernEffectSpinner extends AppCompatSpinner {
         list.setPadding(dp(8), dp(8), dp(8), dp(8));
 
         AlertDialog dialog = new AlertDialog.Builder(getContext())
-                .setTitle("ReShade effect")
+                .setTitle(getContext().getString(R.string.reshade_effect))
                 .setView(list)
                 .create();
 

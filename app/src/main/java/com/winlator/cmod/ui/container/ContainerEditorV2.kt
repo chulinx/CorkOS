@@ -55,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -331,7 +332,17 @@ internal fun ContainerEditorV2(editId: Int?, onBack: () -> Unit, onCreated: () -
     val scope = rememberCoroutineScope()
 
     var category by remember { mutableStateOf("General") }
-    val categories = listOf("General", "Video", "Compatibility", "Input", "Storage", "Environment", "Advanced")
+    // Stable English keys paired with localized labels. The key (not the label) is what the
+    // `when (category)` below branches on, so tab selection keeps working in any locale.
+    val categories = listOf(
+        "General" to stringResource(R.string.section_general),
+        "Video" to stringResource(R.string.section_video),
+        "Compatibility" to stringResource(R.string.section_compatibility),
+        "Input" to stringResource(R.string.section_input),
+        "Storage" to stringResource(R.string.section_storage),
+        "Environment" to stringResource(R.string.environment),
+        "Advanced" to stringResource(R.string.advanced),
+    )
     val landscape = LocalConfiguration.current.screenWidthDp > LocalConfiguration.current.screenHeightDp
     var revision by remember { mutableIntStateOf(0) }
     var installing by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -619,13 +630,13 @@ internal fun ContainerEditorV2(editId: Int?, onBack: () -> Unit, onCreated: () -
                     ) {
                         item {
                             Text(
-                                "Container settings",
+                                stringResource(R.string.container_settings),
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.padding(8.dp)
                             )
                         }
-                        items(categories) { item -> ContainerNavItemV2(item, category == item) { category = item } }
+                        items(categories) { (key, label) -> ContainerNavItemV2(label, category == key) { category = key } }
                     }
                 }
                 LazyColumn(
@@ -649,7 +660,7 @@ internal fun ContainerEditorV2(editId: Int?, onBack: () -> Unit, onCreated: () -
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    items(categories) { item -> ContainerNavItemV2(item, category == item) { category = item } }
+                    items(categories) { (key, label) -> ContainerNavItemV2(label, category == key) { category = key } }
                 }
                 LazyColumn(
                     Modifier.fillMaxSize().padding(horizontal = 14.dp),
@@ -727,13 +738,13 @@ private fun ContainerCategoryV2(
     when (category) {
         "General" -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SettingsCard {
-                SettingText("Name", s.name) { s.name = it }
+                SettingText(stringResource(R.string.name), s.name) { s.name = it }
                 SettingsDivider()
-                SettingWineRuntimeChoice("Wine / Proton", s.runtime, runtimes, installing, installWine) { s.runtime = it }
+                SettingWineRuntimeChoice(stringResource(R.string.wine_proton), s.runtime, runtimes, installing, installWine) { s.runtime = it }
             }
             SettingsCard {
                 SettingChoice(
-                    "Audio Driver",
+                    stringResource(R.string.audio_driver),
                     audioEntries.firstOrNull { StringUtils.parseIdentifier(it).equals(s.audio, true) } ?: s.audio,
                     audioEntries
                 ) { s.audio = StringUtils.parseIdentifier(it) }
@@ -744,7 +755,7 @@ private fun ContainerCategoryV2(
                         "stable" -> "Stable"
                         else -> "Automatic"
                     }
-                    SettingChoice("Oboe latency", latencyLabel, listOf("Automatic", "Low Latency", "Stable")) {
+                    SettingChoice(stringResource(R.string.oboe_latency), latencyLabel, listOf("Automatic", "Low Latency", "Stable")) {
                         s.oboeProfile = when (it) {
                             "Low Latency" -> "ultra"
                             "Stable" -> "stable"
@@ -757,7 +768,7 @@ private fun ContainerCategoryV2(
                         "opensles" -> "OpenSL ES"
                         else -> "Automatic"
                     }
-                    SettingChoice("Oboe backend", apiLabel, listOf("Automatic", "AAudio", "OpenSL ES")) {
+                    SettingChoice(stringResource(R.string.oboe_backend), apiLabel, listOf("Automatic", "AAudio", "OpenSL ES")) {
                         s.oboeApi = when (it) {
                             "AAudio" -> "aaudio"
                             "OpenSL ES" -> "opensles"
@@ -766,26 +777,26 @@ private fun ContainerCategoryV2(
                     }
                 }
                 SettingsDivider()
-                val hudEntries = listOf("Off", "Classic", "Modern")
-                SettingChoice("Winlator HUD", hudEntries.getOrElse(s.hudMode) { "Off" }, hudEntries) {
+                val hudEntries = listOf(stringResource(R.string.off), "Classic", "Modern")
+                SettingChoice(stringResource(R.string.winlator_hud), hudEntries.getOrElse(s.hudMode) { stringResource(R.string.off) }, hudEntries) {
                     s.hudMode = hudEntries.indexOf(it).coerceAtLeast(0)
                 }
             }
             SettingsCard {
-                SettingChoice("Locale (LC_ALL)", localeDisplayValue(s.locale), localeEntries) {
+                SettingChoice(stringResource(R.string.locale_lc_all), localeDisplayValue(s.locale), localeEntries) {
                     s.locale = normalizeLocaleValue(it)
                 }
                 SettingsDivider()
-                SettingChoice("MIDI SoundFont", s.soundFont.ifBlank { "Disabled" }, soundFonts) {
+                SettingChoice(stringResource(R.string.midi_sound_font), s.soundFont.ifBlank { "Disabled" }, soundFonts) {
                     s.soundFont = if (it == "Disabled") "" else it
                 }
                 SettingsDivider()
-                SettingToggle("Fullscreen Stretched", s.fullscreen) { s.fullscreen = it }
+                SettingToggle(stringResource(R.string.fullscreen_stretched), s.fullscreen) { s.fullscreen = it }
             }
             SettingsCard {
-                SettingChoice("Desktop Theme", s.desktopTheme, listOf("Dark", "Light")) { s.desktopTheme = it }
+                SettingChoice(stringResource(R.string.desktop_theme), s.desktopTheme, listOf("Dark", "Light")) { s.desktopTheme = it }
                 SettingsDivider()
-                SettingChoice("Desktop Background", s.desktopBackground, listOf("Image", "Solid Color")) { s.desktopBackground = it }
+                SettingChoice(stringResource(R.string.desktop_background), s.desktopBackground, listOf("Image", "Solid Color")) { s.desktopBackground = it }
                 if (s.desktopBackground == "Image") {
                     SettingsDivider()
                     Row(
@@ -794,7 +805,7 @@ private fun ContainerCategoryV2(
                     ) {
                         Column(Modifier.weight(1f)) {
                             Text(
-                                "Wallpaper image",
+                                stringResource(R.string.wallpaper_image),
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -810,7 +821,7 @@ private fun ContainerCategoryV2(
                     }
                 }
                 SettingsDivider()
-                SettingChoice("Mouse Warp Override", s.mouseWarp, listOf("disable", "enable", "force")) { s.mouseWarp = it }
+                SettingChoice(stringResource(R.string.mouse_warp_override), s.mouseWarp, listOf("disable", "enable", "force")) { s.mouseWarp = it }
             }
         }
 
@@ -821,7 +832,7 @@ private fun ContainerCategoryV2(
                 }
                 val shownScreen = if (customScreenSelected) "Custom"
                 else screenEntries.firstOrNull { normalizeResolution(it).equals(s.screen, true) } ?: "Custom"
-                SettingChoice("Screen Size", shownScreen, screenEntries) {
+                SettingChoice(stringResource(R.string.screen_size), shownScreen, screenEntries) {
                     if (it.equals("Custom", true)) {
                         customScreenSelected = true
                     } else {
@@ -831,50 +842,50 @@ private fun ContainerCategoryV2(
                 }
                 if (shownScreen == "Custom") {
                     SettingsDivider()
-                    SettingText("Custom resolution", s.screen) { s.screen = it }
+                    SettingText(stringResource(R.string.custom_resolution), s.screen) { s.screen = it }
                 }
                 SettingsDivider()
-                SettingChoice("Renderer", s.renderer, listOf("Vulkan", "EGL", "DisplayX")) {
+                SettingChoice(stringResource(R.string.renderer), s.renderer, listOf("Vulkan", "EGL", "DisplayX")) {
                     s.renderer = it
                     s.surfaceFormat = if (it == "DisplayX") "rgba8" else "bgra8"
                     if (it == "EGL" && s.filterMode > 1) s.filterMode = 0
                 }
                 SettingsDivider()
                 SettingChoice(
-                    "Surface format",
+                    stringResource(R.string.surface_format),
                     if (s.surfaceFormat == "bgra8") "BGRA" else "RGBA",
                     listOf("RGBA", "BGRA")
                 ) { s.surfaceFormat = if (it == "BGRA") "bgra8" else "rgba8" }
                 if (s.renderer == "DisplayX") {
                     SettingsDivider()
-                    SettingToggle("Bypass X11", s.trueDisplayX) {
+                    SettingToggle(stringResource(R.string.bypass_x11), s.trueDisplayX) {
                         s.trueDisplayX = it
                     }
                     SettingsDivider()
-                    SettingToggle("Performance mode", s.displayXPerformanceMode) {
+                    SettingToggle(stringResource(R.string.performance_mode), s.displayXPerformanceMode) {
                         s.displayXPerformanceMode = it
                     }
                     SettingsDivider()
-                    SettingToggle("Present at refresh rate", s.displayXPresentAtRefreshRate) {
+                    SettingToggle(stringResource(R.string.present_at_refresh_rate), s.displayXPresentAtRefreshRate) {
                         s.displayXPresentAtRefreshRate = it
                     }
                     SettingsDivider()
-                    SettingToggle("Submit every buffer", s.displayXBackPressure) {
+                    SettingToggle(stringResource(R.string.submit_every_buffer), s.displayXBackPressure) {
                         s.displayXBackPressure = it
                     }
                     SettingsDivider()
-                    SettingToggle("Precise presentation", s.displayXPrecisePresentation) {
+                    SettingToggle(stringResource(R.string.precise_presentation), s.displayXPrecisePresentation) {
                         s.displayXPrecisePresentation = it
                     }
                 } else {
                     if (s.renderer != "EGL") {
                         SettingsDivider()
-                        SettingChoice("Present Mode", s.rendererPresentMode, listOf("fifo", "mailbox")) {
+                        SettingChoice(stringResource(R.string.present_mode), s.rendererPresentMode, listOf("fifo", "mailbox")) {
                             s.rendererPresentMode = it
                         }
                         catalog?.let { c ->
                             SettingsDivider()
-                            SettingMappedChoice("Renderer Driver", s.rendererDriver, c.rendererDrivers) {
+                            SettingMappedChoice(stringResource(R.string.renderer_driver), s.rendererDriver, c.rendererDrivers) {
                                 s.rendererDriver = it
                             }
                         }
@@ -889,20 +900,20 @@ private fun ContainerCategoryV2(
                         "Lanczos 2 (16-tap)",
                         "Color Boost"
                     )
-                    SettingChoice("Texture Filter", filters.getOrElse(s.filterMode) { filters.first() }, filters) {
+                    SettingChoice(stringResource(R.string.texture_filter), filters.getOrElse(s.filterMode) { filters.first() }, filters) {
                         s.filterMode = filters.indexOf(it).coerceAtLeast(0)
                     }
                 }
             }
             SettingsCard {
                 SettingChoice(
-                    "Graphics Driver",
+                    stringResource(R.string.graphics_driver),
                     graphicsEntries.firstOrNull { StringUtils.parseIdentifier(it).equals(s.graphicsDriver, true) } ?: s.graphicsDriver,
                     graphicsEntries
                 ) { s.selectGraphicsDriver(StringUtils.parseIdentifier(it)) }
                 catalog?.let { c ->
                     SettingsDivider()
-                    SettingDriverChoice("Driver Version", s.driverVersion, c.drivers, installing, installDriver) {
+                    SettingDriverChoice(stringResource(R.string.driver_version), s.driverVersion, c.drivers, installing, installDriver) {
                         s.driverVersion = it
                         s.graphics("version", it)
                     }
@@ -912,39 +923,39 @@ private fun ContainerCategoryV2(
                     }
                     SettingsDivider()
                 }
-                SettingChoice("Vulkan Version", s.vulkanVersion, listOf("1.1", "1.2", "1.3")) {
+                SettingChoice(stringResource(R.string.graphics_driver_vulkan_version), s.vulkanVersion, listOf("1.1", "1.2", "1.3")) {
                     s.vulkanVersion = it; s.graphics("vulkanVersion", it)
                 }
                 SettingsDivider()
-                SettingChoice("GPU Name", s.gpuName, gpuNames) { s.gpuName = it; s.graphics("gpuName", it) }
+                SettingChoice(stringResource(R.string.gpu_name), s.gpuName, gpuNames) { s.gpuName = it; s.graphics("gpuName", it) }
                 SettingsDivider()
-                SettingChoice("Max Device Memory", s.maxMemory, listOf("0", "512", "1024", "2048", "4096", "8192", "12288", "16384")) {
+                SettingChoice(stringResource(R.string.max_device_memory), s.maxMemory, listOf("0", "512", "1024", "2048", "4096", "8192", "12288", "16384")) {
                     s.maxMemory = it; s.graphics("maxDeviceMemory", it)
                 }
                 SettingsDivider()
-                SettingChoice("Driver Present Mode", s.driverPresentMode, listOf("mailbox", "fifo", "immediate", "relaxed")) {
+                SettingChoice(stringResource(R.string.driver_present_mode), s.driverPresentMode, listOf("mailbox", "fifo", "immediate", "relaxed")) {
                     s.driverPresentMode = it; s.graphics("presentMode", it)
                 }
                 SettingsDivider()
-                SettingToggle("Sync Frame", s.syncFrame) { s.syncFrame = it; s.graphics("syncFrame", if (it) "1" else "0") }
+                SettingToggle(stringResource(R.string.graphics_driver_sync_frame), s.syncFrame) { s.syncFrame = it; s.graphics("syncFrame", if (it) "1" else "0") }
                 SettingsDivider()
-                SettingToggle("Disable Present Wait", s.disablePresentWait) {
+                SettingToggle(stringResource(R.string.graphics_driver_disable_present_wait), s.disablePresentWait) {
                     s.disablePresentWait = it; s.graphics("disablePresentWait", if (it) "1" else "0")
                 }
                 SettingsDivider()
-                SettingChoice("Resource Type", s.resourceType, listOf("auto", "dmabuf", "ahb", "opaque")) {
+                SettingChoice(stringResource(R.string.graphics_driver_resource_type), s.resourceType, listOf("auto", "dmabuf", "ahb", "opaque")) {
                     s.resourceType = it; s.graphics("resourceType", it)
                 }
                 SettingsDivider()
-                SettingChoice("BCN Emulation", s.bcn, listOf("none", "partial", "full", "auto")) {
+                SettingChoice(stringResource(R.string.graphics_driver_bcn_emulation), s.bcn, listOf("none", "partial", "full", "auto")) {
                     s.bcn = it; s.graphics("bcnEmulation", it)
                 }
                 SettingsDivider()
-                SettingChoice("BCN Emulation Type", s.bcnType, listOf("software", "compute")) {
+                SettingChoice(stringResource(R.string.graphics_driver_bcn_emulation_type), s.bcnType, listOf("software", "compute")) {
                     s.bcnType = it; s.graphics("bcnEmulationType", it)
                 }
                 SettingsDivider()
-                SettingToggle("BCN Emulation Cache", s.bcnCache) {
+                SettingToggle(stringResource(R.string.graphics_driver_bcn_emulation_cache), s.bcnCache) {
                     s.bcnCache = it; s.graphics("bcnEmulationCache", if (it) "1" else "0")
                 }
             }
@@ -953,15 +964,15 @@ private fun ContainerCategoryV2(
         "Compatibility" -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SettingsCard {
                 val shownWrapper = wrapperEntries.firstOrNull { StringUtils.parseIdentifier(it).equals(s.wrapper, true) } ?: s.wrapper
-                SettingChoice("DX Wrapper", shownWrapper, wrapperEntries) { s.wrapper = StringUtils.parseIdentifier(it) }
+                SettingChoice(stringResource(R.string.dxwrapper), shownWrapper, wrapperEntries) { s.wrapper = StringUtils.parseIdentifier(it) }
                 if (s.wrapper.contains("dxvk", true)) catalog?.let { c ->
                     val dxvkCatalog = filterDxvkForVkd3d(c.dxvk, s.vkd3dVersion)
                     SettingsDivider()
-                    SettingInstallChoice("DXVK Version", s.dxvkVersion, dxvkCatalog, installing, "DXVK", { v ->
+                    SettingInstallChoice(stringResource(R.string.dxvk_version), s.dxvkVersion, dxvkCatalog, installing, "DXVK", { v ->
                         installRuntime("DXVK", v) { installed -> s.selectDxvkVersion(installed) }
                     }) { s.selectDxvkVersion(it) }
                     SettingsDivider()
-                    SettingInstallChoice("VKD3D Version", s.vkd3dVersion, c.vkd3d, installing, "VKD3D", { v ->
+                    SettingInstallChoice(stringResource(R.string.vkd3d_version), s.vkd3dVersion, c.vkd3d, installing, "VKD3D", { v ->
                         installRuntime("VKD3D", v) { installed ->
                             s.vkd3dVersion = installed
                             s.wrapperValue("vkd3dVersion", installed)
@@ -977,25 +988,25 @@ private fun ContainerCategoryV2(
                         }
                     }
                     SettingsDivider()
-                    SettingChoice("VKD3D Feature Level", s.vkd3dLevel, listOf("12_0", "12_1", "12_2", "11_1", "11_0", "10_1", "10_0", "9_3", "9_2", "9_1")) {
+                    SettingChoice(stringResource(R.string.vkd3d_feature_level), s.vkd3dLevel, listOf("12_0", "12_1", "12_2", "11_1", "11_0", "10_1", "10_0", "9_3", "9_2", "9_1")) {
                         s.vkd3dLevel = it; s.wrapperValue("vkd3dLevel", it)
                     }
                     SettingsDivider()
-                    SettingText("Frame Rate", s.frameRate) {
+                    SettingText(stringResource(R.string.frame_rate), s.frameRate) {
                         s.frameRate = it.filter(Char::isDigit).take(4); s.wrapperValue("framerate", s.frameRate.ifBlank { "0" })
                     }
                     SettingsDivider()
-                    SettingToggle("Max Frame Latency", s.maxFrameLatency) {
+                    SettingToggle(stringResource(R.string.max_frame_latency), s.maxFrameLatency) {
                         s.maxFrameLatency = it; s.wrapperValue("maxFrameLatency", if (it) "1" else "0")
                     }
                     val asyncMode = dxvkAsyncMode(s.dxvkVersion)
                     if (asyncMode != DxvkAsyncMode.NONE) {
                         SettingsDivider()
-                        SettingToggle("Async", s.async) { s.async = it; s.wrapperValue("async", if (it) "1" else "0") }
+                        SettingToggle(stringResource(R.string.async), s.async) { s.async = it; s.wrapperValue("async", if (it) "1" else "0") }
                     }
                     if (asyncMode == DxvkAsyncMode.GPL_ASYNC) {
                         SettingsDivider()
-                        SettingToggle("Async Cache", s.asyncCache) { s.asyncCache = it; s.wrapperValue("asyncCache", if (it) "1" else "0") }
+                        SettingToggle(stringResource(R.string.async_cache), s.asyncCache) { s.asyncCache = it; s.wrapperValue("asyncCache", if (it) "1" else "0") }
                     }
                     SettingsDivider()
                     DDrawWrapperChoice(s.ddrawWrapper) {
@@ -1005,15 +1016,15 @@ private fun ContainerCategoryV2(
             }
             SettingsCard {
                 if (arm64) {
-                    SettingChoice("32-bit Emulator", s.emulator, listOf("FEXCore", "WOWBox64")) { s.emulator = it }
+                    SettingChoice(stringResource(R.string.dll_emulator), s.emulator, listOf("FEXCore", "WOWBox64")) { s.emulator = it }
                     catalog?.let { c ->
                         SettingsDivider()
-                        SettingInstallChoice("FEXCore Version", s.fexVersion, c.fex, installing, "FEXCore", { v ->
+                        SettingInstallChoice(stringResource(R.string.fexcore_version), s.fexVersion, c.fex, installing, "FEXCore", { v ->
                             installRuntime("FEXCore", v) { installed -> s.fexVersion = installed }
                         }) { s.fexVersion = it }
                     }
                     SettingsDivider()
-                    SettingMappedChoice("FEXCore Preset", s.fexPreset, fexPresets) { s.fexPreset = it }
+                    SettingMappedChoice(stringResource(R.string.fexcore_preset), s.fexPreset, fexPresets) { s.fexPreset = it }
                 }
                 if (!arm64 || s.emulator == "WOWBox64") {
                     catalog?.let { c ->
@@ -1025,25 +1036,25 @@ private fun ContainerCategoryV2(
                         }) { s.boxVersion = it }
                     }
                     SettingsDivider()
-                    SettingMappedChoice("Box64 Preset", s.boxPreset, boxPresets) { s.boxPreset = it }
+                    SettingMappedChoice(stringResource(R.string.box64_preset), s.boxPreset, boxPresets) { s.boxPreset = it }
                 }
             }
         }
 
         "Input" -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SettingsCard {
-                SettingToggle("Exclusive Input", s.exclusive) { enabled ->
+                SettingToggle(stringResource(R.string.exclusive_input), s.exclusive) { enabled ->
                     s.exclusive = enabled
                     if (!enabled) {
                         s.xinput = true; s.dinput = true
                     } else if (s.xinput && s.dinput) s.dinput = false
                 }
                 SettingsDivider()
-                SettingToggle("Enable XInput", s.xinput, s.exclusive) {
+                SettingToggle(stringResource(R.string.enable_xinput), s.xinput, s.exclusive) {
                     s.xinput = it; if (s.exclusive && it && s.dinput) s.dinput = false
                 }
                 SettingsDivider()
-                SettingToggle("Enable DInput", s.dinput, s.exclusive) {
+                SettingToggle(stringResource(R.string.enable_dinput), s.dinput, s.exclusive) {
                     s.dinput = it; if (s.exclusive && it && s.xinput) s.xinput = false
                 }
             }
@@ -1060,23 +1071,23 @@ private fun ContainerCategoryV2(
             EnvironmentVariablesEditor(cleanContainerEnvironment(s.envVars), onChanged = { s.setEnvironment(it) })
         }
 
-        else -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        "Advanced" -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SettingsCard {
                 val startupEntries = listOf(
                     "Normal (Load all services)",
                     "Essential (Load only essential services)",
                     "Aggressive (Stop services on startup)"
                 )
-                SettingChoice("Startup Selection", startupEntries[s.startup.coerceIn(0, 2)], startupEntries) {
+                SettingChoice(stringResource(R.string.startup_selection), startupEntries[s.startup.coerceIn(0, 2)], startupEntries) {
                     s.startup = startupEntries.indexOf(it).coerceAtLeast(0)
                 }
             }
             SettingsCard {
-                SettingToggle("Sync CPU Topology", s.syncCpu) { s.syncCpu = it }
+                SettingToggle(stringResource(R.string.sync_cpu_topology), s.syncCpu) { s.syncCpu = it }
                 SettingsDivider()
-                CpuSelectorRow("Processor Affinity", s.cpu64) { index, checked -> s.cpu64[index] = checked }
+                CpuSelectorRow(stringResource(R.string.processor_affinity), s.cpu64) { index, checked -> s.cpu64[index] = checked }
                 SettingsDivider()
-                CpuSelectorRow("Processor Affinity (32-bit apps)", s.cpu32) { index, checked -> s.cpu32[index] = checked }
+                CpuSelectorRow(stringResource(R.string.processor_affinity_32_bit_apps), s.cpu32) { index, checked -> s.cpu32[index] = checked }
             }
             SettingsCard {
                 containerComponentRowsV2.forEachIndexed { index, (key, label) ->
@@ -1101,7 +1112,7 @@ private fun ContainerVulkanExtensionsV2(
         runCatching { GPUInformation.enumerateExtensions(driver, context).toList().sorted() }.getOrDefault(emptyList())
     }
     if (extensions.isEmpty()) {
-        SettingText("Disabled Vulkan Extensions", blacklisted, 2) { onChanged(it.replace(" ", "")) }
+        SettingText(stringResource(R.string.disabled_vulkan_extensions), blacklisted, 2) { onChanged(it.replace(" ", "")) }
         return
     }
     val disabled = blacklisted.split(',').map(String::trim).filter(String::isNotBlank).toSet()
@@ -1109,7 +1120,7 @@ private fun ContainerVulkanExtensionsV2(
     var open by remember { mutableStateOf(false) }
     Surface(onClick = { open = true }, color = Color.Transparent, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp)) {
-            Text("Vulkan Extensions", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.vulkan_extensions), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("$enabledCount of ${extensions.size} enabled", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
         }
     }
@@ -1122,10 +1133,10 @@ private fun ContainerVulkanExtensionsV2(
             confirmButton = {
                 TextButton(onClick = {
                     onChanged(extensions.filterNot { it in selected }.joinToString(",")); open = false
-                }) { Text("Done") }
+                }) { Text(stringResource(R.string.action_done)) }
             },
-            dismissButton = { TextButton(onClick = { open = false }) { Text("Cancel") } },
-            title = { Text("Vulkan Extensions") },
+            dismissButton = { TextButton(onClick = { open = false }) { Text(stringResource(R.string.cancel)) } },
+            title = { Text(stringResource(R.string.vulkan_extensions)) },
             text = {
                 LazyColumn(Modifier.heightIn(max = 460.dp)) {
                     items(extensions) { extension ->

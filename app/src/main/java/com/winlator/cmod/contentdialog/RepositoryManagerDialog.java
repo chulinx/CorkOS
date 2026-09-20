@@ -45,7 +45,7 @@ public class RepositoryManagerDialog {
 
     public void show() {
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setTitle("Driver Sources"); // English
+        builder.setTitle(context.getString(R.string.driver_sources)); // English
 
         recyclerView = new RecyclerView(context);
         recyclerView.setBackgroundColor(Color.BLACK);
@@ -57,7 +57,7 @@ public class RepositoryManagerDialog {
 
         builder.setView(recyclerView);
         
-        builder.setPositiveButton("Add Source", (d, w) -> showRepoDialog(null, -1));
+        builder.setPositiveButton(context.getString(R.string.add_source), (d, w) -> showRepoDialog(null, -1));
         builder.setNegativeButton("Close", null);
 
         dialog = builder.create();
@@ -85,7 +85,7 @@ public class RepositoryManagerDialog {
         layout.addView(inputUrl);
         builder.setView(layout);
 
-        builder.setPositiveButton("Save", (d, w) -> {
+        builder.setPositiveButton(context.getString(R.string.save), (d, w) -> {
             String name = inputName.getText().toString().trim();
             String url = inputUrl.getText().toString().trim();
             
@@ -107,7 +107,7 @@ public class RepositoryManagerDialog {
                 adapter.notifyDataSetChanged();
             }
         });
-        builder.setNegativeButton("Cancel", null);
+        builder.setNegativeButton(context.getString(R.string.cancel), null);
         builder.show();
     }
 
@@ -190,12 +190,12 @@ public class RepositoryManagerDialog {
             holder.actionButton.setOnClickListener(v -> {
                 PopupMenu popup = new PopupMenu(context, holder.actionButton);
                 popup.getMenu().add("Edit");
-                popup.getMenu().add("Delete");
+                popup.getMenu().add(context.getString(R.string.action_delete));
                 
                 popup.setOnMenuItemClickListener(item -> {
                     if (item.getTitle().equals("Edit")) {
                         showRepoDialog(repo, position);
-                    } else if (item.getTitle().equals("Delete")) {
+                    } else if (item.getTitle().equals(context.getString(R.string.action_delete))) {
                         repos.remove(position);
                         saveRepos();
                         notifyDataSetChanged();

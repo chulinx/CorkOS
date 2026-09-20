@@ -55,7 +55,7 @@
         android:layout_height="32dp"
         android:layout_marginStart="4dp"
         android:background="?android:attr/selectableItemBackgroundBorderless"
-        android:contentDescription="More options"
+        android:contentDescription="@string/action_more_options"
         android:padding="7dp"
         android:src="@drawable/ui_ic_more"
         app:tint="?attr/ingameSidebarOnSurfaceVariant" />

@@ -196,7 +196,7 @@ public class AdrenotoolsFragment extends Fragment {
             h.name.setText(adrenotoolsManager.getDriverName(driversList.get(position)));
             h.version.setText(adrenotoolsManager.getDriverVersion(driversList.get(position)));
             h.badge.setVisibility(View.VISIBLE);
-            h.badge.setText("Current Driver");
+            h.badge.setText(getString(R.string.current_driver));
             h.actionButton.setImageResource(android.R.drawable.ic_menu_delete);
             h.actionButton.setOnClickListener((v) -> removeAtIndex(position));
         }

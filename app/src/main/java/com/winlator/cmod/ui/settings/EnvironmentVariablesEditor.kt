@@ -32,8 +32,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.winlator.cmod.R
 
 enum class EnvValueKind { CHECKBOX, SELECT, MULTI, TEXT, NUMBER }
 
@@ -104,7 +106,7 @@ fun EnvironmentVariablesEditor(
                 color = MaterialTheme.colorScheme.surface
             ) {
                 Text(
-                    "No environment variables added.",
+                    stringResource(R.string.no_environment_variables),
                     modifier = Modifier.padding(14.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -134,7 +136,7 @@ fun EnvironmentVariablesEditor(
         OutlinedButton(onClick = { addOpen = true }, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Outlined.Add, null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.size(7.dp))
-            Text("Add variable")
+            Text(stringResource(R.string.add_variable))
         }
     }
 
@@ -178,13 +180,13 @@ private fun EnvironmentVariableRow(
                 )
             }
             EnvValueKind.SELECT -> SettingChoice(
-                label = "Value",
+                label = stringResource(R.string.value),
                 selected = row.value.ifBlank { spec.options.firstOrNull().orEmpty() },
                 entries = spec.options
             ) { onValue(it) }
             EnvValueKind.MULTI -> MultiEnvironmentChoice(spec.options, row.value, onValue)
-            EnvValueKind.NUMBER -> SettingText("Value", row.value) { onValue(it.filter(Char::isDigit)) }
-            EnvValueKind.TEXT -> SettingText("Value", row.value, onChanged = onValue)
+            EnvValueKind.NUMBER -> SettingText(stringResource(R.string.value), row.value) { onValue(it.filter(Char::isDigit)) }
+            EnvValueKind.TEXT -> SettingText(stringResource(R.string.value), row.value, onChanged = onValue)
         }
     }
 }
@@ -195,7 +197,7 @@ private fun MultiEnvironmentChoice(options: List<String>, value: String, onChang
     val selectedText = value.ifBlank { "None" }
     Surface(onClick = { open = true }, color = androidx.compose.ui.graphics.Color.Transparent, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 9.dp)) {
-            Text("Value", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.value), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(selectedText, style = MaterialTheme.typography.bodyLarge)
         }
     }
@@ -211,10 +213,10 @@ private fun MultiEnvironmentChoice(options: List<String>, value: String, onChang
                 TextButton(onClick = {
                     onChanged(selected.joinToString(","))
                     open = false
-                }) { Text("Done") }
+                }) { Text(stringResource(R.string.action_done)) }
             },
-            dismissButton = { TextButton(onClick = { open = false }) { Text("Cancel") } },
-            title = { Text("Select values") },
+            dismissButton = { TextButton(onClick = { open = false }) { Text(stringResource(R.string.cancel)) } },
+            title = { Text(stringResource(R.string.select_values)) },
             text = {
                 LazyColumn(Modifier.heightIn(max = 420.dp)) {
                     items(options) { option ->
@@ -264,17 +266,17 @@ private fun AddEnvironmentVariableDialog(
                     }
                     onAdd(finalName, initial)
                 }
-            }) { Text("Add") }
+            }) { Text(stringResource(R.string.add)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-        title = { Text("Add environment variable") },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+        title = { Text(stringResource(R.string.add_environment_variable)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SettingChoice("Variable", selected, options) { picked ->
+                SettingChoice(stringResource(R.string.variable), selected, options) { picked ->
                     name = if (picked == "Custom…") "" else picked
                 }
                 if (selected == "Custom…") {
-                    SettingText("Name", customName) { customName = it }
+                    SettingText(stringResource(R.string.name), customName) { customName = it }
                 }
             }
         }

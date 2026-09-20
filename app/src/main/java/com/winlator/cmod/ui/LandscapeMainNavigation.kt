@@ -16,8 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.SportsEsports
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -40,13 +39,16 @@ import androidx.drawerlayout.widget.DrawerLayout
 import com.winlator.cmod.MainActivity
 import com.winlator.cmod.R
 
-fun applyAppFullscreen(activity: Activity?) {
+/**
+ * Keeps the system bars visible (status bar readable) while letting the app draw a normal, inset
+ * layout. Previously this forced a fullscreen window; in-game screens still do that via their own
+ * `AppThemeFullscreen` theme, so the main UI no longer needs to.
+ */
+fun applySystemBars(activity: Activity?) {
     if (activity == null) return
 
     val window = activity.window
-    WindowCompat.setDecorFitsSystemWindows(window, false)
-    window.statusBarColor = android.graphics.Color.TRANSPARENT
-    window.navigationBarColor = android.graphics.Color.TRANSPARENT
+    WindowCompat.setDecorFitsSystemWindows(window, true)
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
         window.attributes = window.attributes.apply {
@@ -59,8 +61,8 @@ fun applyAppFullscreen(activity: Activity?) {
     }
 
     WindowInsetsControllerCompat(window, window.decorView).apply {
-        hide(WindowInsetsCompat.Type.systemBars())
-        systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        show(WindowInsetsCompat.Type.systemBars())
+        systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
     }
 }
 
@@ -85,7 +87,7 @@ fun KeepLandscapeChromeHidden(activity: MainActivity?, restoreChromeOnPortrait: 
             true
         }
 
-        applyAppFullscreen(activity)
+        applySystemBars(activity)
         forceLandscapeChrome()
         decor?.viewTreeObserver?.addOnPreDrawListener(preDrawListener)
 
@@ -104,11 +106,11 @@ fun KeepLandscapeChromeHidden(activity: MainActivity?, restoreChromeOnPortrait: 
     }
 
     LaunchedEffect(activity) {
-        applyAppFullscreen(activity)
+        applySystemBars(activity)
         activity?.setBottomNavigationVisible(false)
         activity?.setMainToolbarVisible(false)
         withFrameNanos { }
-        applyAppFullscreen(activity)
+        applySystemBars(activity)
         activity?.setBottomNavigationVisible(false)
         activity?.setMainToolbarVisible(false)
     }
@@ -145,11 +147,9 @@ fun LandscapeMainNavigation(
         Destination(Icons.Outlined.Home, "Library", selected == R.id.main_menu_shortcuts) {
             activity?.navigateToMainDestination(R.id.main_menu_shortcuts)
         }
-        Destination(Icons.Outlined.SportsEsports, "Input Controls", selected == R.id.main_menu_input_controls) {
-            activity?.navigateToMainDestination(R.id.main_menu_input_controls)
-        }
-        Destination(Icons.Outlined.Settings, "Settings", selected == R.id.main_menu_settings) {
-            activity?.navigateToMainDestination(R.id.main_menu_settings)
+        // Every non-library destination lives inside the "Mine" tab.
+        Destination(Icons.Outlined.Person, "Mine", selected != R.id.main_menu_shortcuts) {
+            activity?.navigateToMainDestination(R.id.main_menu_profile)
         }
     }
 }

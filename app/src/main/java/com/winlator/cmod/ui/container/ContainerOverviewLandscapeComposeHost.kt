@@ -48,9 +48,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.winlator.cmod.R
 import com.winlator.cmod.ui.theme.WinZTheme
 
 object ContainerOverviewLandscapeComposeHost {
@@ -67,14 +69,20 @@ private data class LandscapeSection(val id: String, val title: String, val subti
 
 @Composable
 private fun LandscapeContainerOverview(model: ContainerOverviewModel, callbacks: ContainerOverviewCallbacks) {
-    val sections = remember(model) {
+    val systemLabel = stringResource(R.string.system)
+    val advancedLabel = stringResource(R.string.advanced)
+    val videoLabel = stringResource(R.string.section_video)
+    val audioLabel = stringResource(R.string.section_audio)
+    val compatLabel = stringResource(R.string.section_compatibility)
+    val storageLabel = stringResource(R.string.section_storage)
+    val sections = remember(model, systemLabel, advancedLabel, videoLabel, audioLabel, compatLabel, storageLabel) {
         listOf(
-            LandscapeSection(ContainerOverviewComposeHost.SECTION_SYSTEM, "System", "Wine ${model.wineVersion}", Icons.Outlined.Settings),
-            LandscapeSection(ContainerOverviewComposeHost.SECTION_VIDEO, "Video", "${model.renderer}  •  ${model.screenSize}", Icons.Outlined.DesktopWindows),
-            LandscapeSection(ContainerOverviewComposeHost.SECTION_AUDIO, "Audio", model.audioDriver, Icons.Outlined.VolumeUp),
-            LandscapeSection(ContainerOverviewComposeHost.SECTION_COMPATIBILITY, "Compatibility", model.emulator, Icons.Outlined.VerifiedUser),
-            LandscapeSection(ContainerOverviewComposeHost.SECTION_STORAGE, "Storage", "", Icons.Outlined.Folder),
-            LandscapeSection(ContainerOverviewComposeHost.SECTION_ADVANCED, "Advanced", "", Icons.Outlined.Tune)
+            LandscapeSection(ContainerOverviewComposeHost.SECTION_SYSTEM, systemLabel, "Wine ${model.wineVersion}", Icons.Outlined.Settings),
+            LandscapeSection(ContainerOverviewComposeHost.SECTION_VIDEO, videoLabel, "${model.renderer}  •  ${model.screenSize}", Icons.Outlined.DesktopWindows),
+            LandscapeSection(ContainerOverviewComposeHost.SECTION_AUDIO, audioLabel, model.audioDriver, Icons.Outlined.VolumeUp),
+            LandscapeSection(ContainerOverviewComposeHost.SECTION_COMPATIBILITY, compatLabel, model.emulator, Icons.Outlined.VerifiedUser),
+            LandscapeSection(ContainerOverviewComposeHost.SECTION_STORAGE, storageLabel, "", Icons.Outlined.Folder),
+            LandscapeSection(ContainerOverviewComposeHost.SECTION_ADVANCED, advancedLabel, "", Icons.Outlined.Tune)
         )
     }
     var selected by remember { mutableStateOf(ContainerOverviewComposeHost.SECTION_SYSTEM) }
@@ -90,7 +98,7 @@ private fun LandscapeContainerOverview(model: ContainerOverviewModel, callbacks:
                         .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()).height(48.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
-                ) { Text("Launch Environment", fontWeight = FontWeight.SemiBold) }
+                ) { Text(stringResource(R.string.launch_environment), fontWeight = FontWeight.SemiBold) }
             }
         }
     ) { padding ->

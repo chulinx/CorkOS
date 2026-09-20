@@ -40,9 +40,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.winlator.cmod.R
 import com.winlator.cmod.container.ContainerManager
 import com.winlator.cmod.core.FileUtils
 import com.winlator.cmod.core.WineRegistryEditor
@@ -104,39 +106,40 @@ internal fun ContainerSystemInline(containerId: Int, callbacks: ContainerInlineC
             value = name,
             onValueChange = { name = it },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp),
-            label = { Text("Container name") },
+            label = { Text(stringResource(R.string.container_name)) },
             singleLine = true,
             shape = RoundedCornerShape(10.dp)
         )
         SSDivider()
-        SSChoice("HUD", arrayOf("Off", "Classic", "Modern")[hudMode.coerceIn(0, 2)], arrayOf("Off", "Classic", "Modern")) {
-            hudMode = arrayOf("Off", "Classic", "Modern").indexOf(it).coerceAtLeast(0)
+        val hudEntries = arrayOf(stringResource(R.string.off), "Classic", "Modern")
+        SSChoice(stringResource(R.string.hud), hudEntries[hudMode.coerceIn(0, 2)], hudEntries) {
+            hudMode = hudEntries.indexOf(it).coerceAtLeast(0)
         }
         SSDivider()
-        SSChoice("Theme", desktopTheme, arrayOf("Light", "Dark")) { desktopTheme = it }
+        SSChoice(stringResource(R.string.theme), desktopTheme, arrayOf("Light", "Dark")) { desktopTheme = it }
         SSDivider()
-        SSChoice("Background", backgroundType, arrayOf("Image", "Color")) { backgroundType = it }
+        SSChoice(stringResource(R.string.background), backgroundType, arrayOf("Image", "Color")) { backgroundType = it }
         if (backgroundType == "Image") {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(wallpaperLabel, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                OutlinedButton(onClick = { imagePicker.launch("image/*") }) { Text("Choose image") }
+                OutlinedButton(onClick = { imagePicker.launch("image/*") }) { Text(stringResource(R.string.choose_image)) }
             }
         } else {
             OutlinedTextField(
                 value = backgroundColor,
                 onValueChange = { backgroundColor = it.take(7) },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp),
-                label = { Text("Background color") },
+                label = { Text(stringResource(R.string.background_color)) },
                 singleLine = true,
                 shape = RoundedCornerShape(10.dp)
             )
         }
         SSDivider()
         SSChoice(
-            "Mouse Warp Override",
+            stringResource(R.string.mouse_warp_override),
             mouseWarp.replaceFirstChar { it.uppercase() },
             arrayOf("Disable", "Enable", "Force")
         ) { mouseWarp = it.lowercase(Locale.ENGLISH) }
@@ -195,7 +198,7 @@ internal fun ContainerStorageInline(containerId: Int, callbacks: ContainerInline
             ) {
                 Column(Modifier.width(68.dp)) {
                     Text(
-                        "Letter",
+                        stringResource(R.string.letter),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 2.dp, bottom = 3.dp)
@@ -206,7 +209,7 @@ internal fun ContainerStorageInline(containerId: Int, callbacks: ContainerInline
                     value = drive.path,
                     onValueChange = { drives[index] = drive.copy(path = it) },
                     modifier = Modifier.weight(1f),
-                    label = { Text("Target Path") },
+                    label = { Text(stringResource(R.string.target_path)) },
                     singleLine = true,
                     shape = RoundedCornerShape(10.dp)
                 )
@@ -219,7 +222,7 @@ internal fun ContainerStorageInline(containerId: Int, callbacks: ContainerInline
                     onClick = { if (index in drives.indices) drives.removeAt(index) },
                     modifier = Modifier.size(42.dp),
                     contentPadding = PaddingValues(0.dp)
-                ) { Icon(Icons.Outlined.Delete, "Delete") }
+                ) { Icon(Icons.Outlined.Delete, stringResource(R.string.action_delete)) }
             }
         }
         OutlinedButton(
@@ -228,7 +231,7 @@ internal fun ContainerStorageInline(containerId: Int, callbacks: ContainerInline
                 drives.add(InlineDrive(letters.firstOrNull { it !in used } ?: "E:", "/storage/emulated/0"))
             },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp)
-        ) { Text("Add") }
+        ) { Text(stringResource(R.string.add)) }
         SSSave {
             val serialized = drives.filter { it.path.isNotBlank() }.joinToString("") {
                 "${it.letter.removeSuffix(":")}:${it.path}"
@@ -326,7 +329,7 @@ private fun SSSave(onClick: () -> Unit) {
     Button(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)
-    ) { Text("Save", fontWeight = FontWeight.SemiBold) }
+    ) { Text(stringResource(R.string.save), fontWeight = FontWeight.SemiBold) }
 }
 
 @Composable

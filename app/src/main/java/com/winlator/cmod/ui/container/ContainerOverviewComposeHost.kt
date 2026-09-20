@@ -50,9 +50,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.winlator.cmod.R
 import com.winlator.cmod.ui.theme.WinZTheme
 
 @Immutable
@@ -97,14 +99,21 @@ private data class SectionItem(val id: String, val title: String, val subtitle: 
 
 @Composable
 private fun ContainerOverviewScreen(model: ContainerOverviewModel, callbacks: ContainerOverviewCallbacks) {
-    val sections = remember(model) {
+    val systemLabel = stringResource(R.string.system)
+    val advancedLabel = stringResource(R.string.advanced)
+    val videoLabel = stringResource(R.string.section_video)
+    val audioLabel = stringResource(R.string.section_audio)
+    val compatLabel = stringResource(R.string.section_compatibility)
+    val storageLabel = stringResource(R.string.section_storage)
+    val containerFilesLabel = stringResource(R.string.container_files)
+    val sections = remember(model, systemLabel, advancedLabel, videoLabel, audioLabel, compatLabel, storageLabel, containerFilesLabel) {
         listOf(
-            SectionItem(ContainerOverviewComposeHost.SECTION_SYSTEM, "System", "Wine ${model.wineVersion}", Icons.Outlined.Settings),
-            SectionItem(ContainerOverviewComposeHost.SECTION_VIDEO, "Video", "${model.renderer}  •  ${model.screenSize}", Icons.Outlined.DesktopWindows),
-            SectionItem(ContainerOverviewComposeHost.SECTION_AUDIO, "Audio", model.audioDriver, Icons.Outlined.VolumeUp),
-            SectionItem(ContainerOverviewComposeHost.SECTION_COMPATIBILITY, "Compatibility", model.emulator, Icons.Outlined.Extension),
-            SectionItem(ContainerOverviewComposeHost.SECTION_STORAGE, "Storage", "Container files", Icons.Outlined.Folder),
-            SectionItem(ContainerOverviewComposeHost.SECTION_ADVANCED, "Advanced", "", Icons.Outlined.Tune)
+            SectionItem(ContainerOverviewComposeHost.SECTION_SYSTEM, systemLabel, "Wine ${model.wineVersion}", Icons.Outlined.Settings),
+            SectionItem(ContainerOverviewComposeHost.SECTION_VIDEO, videoLabel, "${model.renderer}  •  ${model.screenSize}", Icons.Outlined.DesktopWindows),
+            SectionItem(ContainerOverviewComposeHost.SECTION_AUDIO, audioLabel, model.audioDriver, Icons.Outlined.VolumeUp),
+            SectionItem(ContainerOverviewComposeHost.SECTION_COMPATIBILITY, compatLabel, model.emulator, Icons.Outlined.Extension),
+            SectionItem(ContainerOverviewComposeHost.SECTION_STORAGE, storageLabel, containerFilesLabel, Icons.Outlined.Folder),
+            SectionItem(ContainerOverviewComposeHost.SECTION_ADVANCED, advancedLabel, "", Icons.Outlined.Tune)
         )
     }
     var expanded by remember { mutableStateOf<String?>(null) }
@@ -119,7 +128,7 @@ private fun ContainerOverviewScreen(model: ContainerOverviewModel, callbacks: Co
                         .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()).height(52.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
-                ) { Text("Launch Environment", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
+                ) { Text(stringResource(R.string.launch_environment), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
             }
         }
     ) { padding ->
