@@ -165,6 +165,18 @@ public class Container {
         putExtra("trueDisplayX", v ? "1" : "0");
     }
 
+    /**
+     * Per-container DRI3 / Present FLIP pass-through. Drives MESA_VK_WSI_DEBUG=sw when disabled.
+     * It used to be the global "use_dri3" preference only; the container-level switch lets each
+     * container pick Vulkan/OpenGL "直通模式 (DRI3)" vs "兼容模式" independently.
+     */
+    public boolean getUseDri3() {
+        return !"0".equals(getExtra("useDri3", "1"));
+    }
+    public void setUseDri3(boolean v) {
+        putExtra("useDri3", v ? "1" : "0");
+    }
+
     public String getSurfaceFormat() {
         String value = getExtra("surfaceFormat", null);
         if (value == null || value.isEmpty()) value = getUseDisplayX() ? "rgba8" : "bgra8";

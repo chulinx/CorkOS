@@ -93,6 +93,14 @@ import com.winlator.cmod.ui.settings.DriverOption
 import com.winlator.cmod.ui.settings.DxvkAsyncMode
 import com.winlator.cmod.ui.settings.EnvironmentVariablesEditor
 import com.winlator.cmod.ui.settings.DDrawWrapperChoice
+import com.winlator.cmod.ui.settings.RENDERER_MODE_DISPLAYX
+import com.winlator.cmod.ui.settings.RENDERER_MODE_GL_COMPAT
+import com.winlator.cmod.ui.settings.RENDERER_MODE_GL_DIRECT
+import com.winlator.cmod.ui.settings.RENDERER_MODE_VULKAN_COMPAT
+import com.winlator.cmod.ui.settings.RENDERER_MODE_VULKAN_DIRECT
+import com.winlator.cmod.ui.settings.RENDERER_MODES
+import com.winlator.cmod.ui.settings.isDri3RendererMode
+import com.winlator.cmod.ui.settings.isOpenGLRendererMode
 import com.winlator.cmod.ui.settings.SettingChoice
 import com.winlator.cmod.ui.settings.SettingDriverChoice
 import com.winlator.cmod.ui.settings.SettingInstallChoice
@@ -157,7 +165,11 @@ private class ShortcutEditorStateV2(val shortcut: Shortcut) {
 
     var name by mutableStateOf(shortcut.name)
     var screen by mutableStateOf(normalizeResolution(shortcut.getExtra("screenSize", container.getScreenSize())))
-    var renderer by mutableStateOf(if (shortcut.getUseDisplayX()) "DisplayX" else if (shortcut.getRendererNative()) "EGL" else "Vulkan")
+    var renderer by mutableStateOf(
+        if (shortcut.getUseDisplayX()) RENDERER_MODE_DISPLAYX
+        else if (shortcut.getRendererNative()) if (shortcut.getUseDri3()) RENDERER_MODE_GL_DIRECT else RENDERER_MODE_GL_COMPAT
+        else if (shortcut.getUseDri3()) RENDERER_MODE_VULKAN_DIRECT else RENDERER_MODE_VULKAN_COMPAT
+    )
     var presentMode by mutableStateOf(shortcut.getRendererPresentMode())
     var rendererDriver by mutableStateOf(shortcut.getRendererDriverId())
     var filterMode by mutableIntStateOf(shortcut.getRendererFilterMode())
@@ -366,8 +378,9 @@ private class ShortcutEditorStateV2(val shortcut: Shortcut) {
     }
 
     fun saveRenderer() {
-        shortcut.setRendererNative(renderer == "EGL")
-        shortcut.setUseDisplayX(renderer == "DisplayX")
+        shortcut.setRendererNative(isOpenGLRendererMode(renderer))
+        shortcut.setUseDisplayX(renderer == RENDERER_MODE_DISPLAYX)
+        shortcut.setUseDri3(isDri3RendererMode(renderer))
         shortcut.setRendererPresentMode(presentMode)
         shortcut.setRendererDriverId(rendererDriver)
         shortcut.setRendererFilterMode(filterMode)
@@ -765,10 +778,10 @@ private fun ShortcutCategoryV2(
                     }
                 }
                 SettingsDivider()
-                SettingChoice(stringResource(R.string.renderer), s.renderer, listOf("Vulkan", "EGL", "DisplayX")) {
+                SettingChoice(stringResource(R.string.renderer), s.renderer, RENDERER_MODES) {
                     s.renderer = it
-                    s.surfaceFormat = if (it == "DisplayX") "rgba8" else "bgra8"
-                    if (it == "EGL" && s.filterMode > 1) s.filterMode = 0
+                    s.surfaceFormat = if (it == RENDERER_MODE_DISPLAYX) "rgba8" else "bgra8"
+                    if (isOpenGLRendererMode(it) && s.filterMode > 1) s.filterMode = 0
                     s.saveRenderer()
                 }
                 SettingsDivider()
@@ -780,7 +793,7 @@ private fun ShortcutCategoryV2(
                     s.surfaceFormat = if (it == "BGRA") "bgra8" else "rgba8"
                     s.saveRenderer()
                 }
-                if (s.renderer == "DisplayX") {
+                if (s.renderer == RENDERER_MODE_DISPLAYX) {
                     SettingsDivider()
                     SettingToggle(stringResource(R.string.bypass_x11), s.trueDisplayX) {
                         s.trueDisplayX = it
@@ -807,7 +820,7 @@ private fun ShortcutCategoryV2(
                         s.saveRenderer()
                     }
                 } else {
-                    if (s.renderer != "EGL") {
+                    if (!isOpenGLRendererMode(s.renderer)) {
                         SettingsDivider()
                         SettingChoice(stringResource(R.string.present_mode), s.presentMode, listOf("mailbox", "fifo")) {
                             s.presentMode = it
@@ -822,7 +835,7 @@ private fun ShortcutCategoryV2(
                         }
                     }
                     SettingsDivider()
-                    val filters = if (s.renderer == "EGL") listOf("Bilinear", "Nearest neighbor")
+                    val filters = if (isOpenGLRendererMode(s.renderer)) listOf("Bilinear", "Nearest neighbor")
                     else listOf("Bilinear", "Nearest neighbor", "Snapdragon Super Resolution", "AMD FidelityFX Super Resolution", "Lanczos 2 (16-tap)", "Color Boost")
                     SettingChoice(stringResource(R.string.texture_filter), filters.getOrElse(s.filterMode) { filters.first() }, filters) {
                         s.filterMode = filters.indexOf(it).coerceAtLeast(0)

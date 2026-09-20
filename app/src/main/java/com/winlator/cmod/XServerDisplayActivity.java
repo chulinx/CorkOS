@@ -2418,7 +2418,11 @@ public class XServerDisplayActivity extends AppCompatActivity {
             WineD3DConfigDialog.setEnvVars(this, dxwrapperConfig, envVars);
         }
 
+        // DRI3 / Present FLIP pass-through. The container (or shortcut) choice wins; when neither
+        // is set explicitly keep the global "use_dri3" preference so existing setups don't change.
         boolean useDRI3 = preferences.getBoolean("use_dri3", true);
+        if (container != null && container.getExtra("useDri3", null) != null) useDRI3 = container.getUseDri3();
+        if (shortcut != null && shortcut.getExtra("useDri3", null) != null) useDRI3 = shortcut.getUseDri3();
         if (!useDRI3) {
             envVars.put("MESA_VK_WSI_DEBUG", "sw");
         }
@@ -2795,7 +2799,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     filename = filename.substring(0, spaceIndex);
                 }
 
-                args += "/dir " + StringUtils.escapeDOSPath(exeDir) + " \"" + filename + "\"" + execArgs;
+                // getDirname() can legitimately come back empty for a separator-less path; in that
+                // case skip the /dir argument instead of emitting a bogus "/dir  " prefix.
+                args += (exeDir.isEmpty() ? "" : "/dir " + StringUtils.escapeDOSPath(exeDir) + " ")
+                        + "\"" + filename + "\"" + execArgs;
             }
         } else {
 

@@ -109,6 +109,14 @@ import com.winlator.cmod.ui.settings.loadWineRuntimeOptions
 import com.winlator.cmod.ui.settings.localeDisplayValue
 import com.winlator.cmod.ui.settings.normalizeLocaleValue
 import com.winlator.cmod.ui.settings.normalizeResolution
+import com.winlator.cmod.ui.settings.RENDERER_MODE_DISPLAYX
+import com.winlator.cmod.ui.settings.RENDERER_MODE_GL_COMPAT
+import com.winlator.cmod.ui.settings.RENDERER_MODE_GL_DIRECT
+import com.winlator.cmod.ui.settings.RENDERER_MODE_VULKAN_COMPAT
+import com.winlator.cmod.ui.settings.RENDERER_MODE_VULKAN_DIRECT
+import com.winlator.cmod.ui.settings.RENDERER_MODES
+import com.winlator.cmod.ui.settings.isDri3RendererMode
+import com.winlator.cmod.ui.settings.isOpenGLRendererMode
 import com.winlator.cmod.ui.settings.readConfig
 import com.winlator.cmod.ui.settings.writeConfig
 import com.winlator.cmod.winhandler.WinHandler
@@ -168,15 +176,17 @@ private class ContainerEditorStateV2(
 
     var renderer by mutableStateOf(
         when {
-            editing?.getUseDisplayX() == true -> "DisplayX"
-            editing?.isRendererNative == true -> "EGL"
-            else -> "Vulkan"
+            editing?.getUseDisplayX() == true -> RENDERER_MODE_DISPLAYX
+            editing?.isRendererNative == true ->
+                if (editing?.getUseDri3() != false) RENDERER_MODE_GL_DIRECT else RENDERER_MODE_GL_COMPAT
+            else ->
+                if (editing?.getUseDri3() != false) RENDERER_MODE_VULKAN_DIRECT else RENDERER_MODE_VULKAN_COMPAT
         }
     )
     var rendererPresentMode by mutableStateOf(editing?.rendererPresentMode ?: "fifo")
     var rendererDriver by mutableStateOf(editing?.rendererDriverId ?: "system")
     var filterMode by mutableIntStateOf(editing?.rendererFilterMode ?: 0)
-    var surfaceFormat by mutableStateOf(editing?.getSurfaceFormat() ?: if (renderer == "DisplayX") "rgba8" else "bgra8")
+    var surfaceFormat by mutableStateOf(editing?.getSurfaceFormat() ?: if (renderer == RENDERER_MODE_DISPLAYX) "rgba8" else "bgra8")
     var trueDisplayX by mutableStateOf(editing?.getTrueDisplayX() ?: false)
     var displayXPerformanceMode by mutableStateOf(editing?.getDisplayXPerformanceMode() ?: true)
     var displayXPresentAtRefreshRate by mutableStateOf(editing?.getDisplayXPresentAtRefreshRate() ?: true)
@@ -460,11 +470,12 @@ internal fun ContainerEditorV2(editId: Int?, onBack: () -> Unit, onCreated: () -
         container.setSyncCpuTopology(state.syncCpu)
         container.setGraphicsDriver(state.graphicsDriver)
         container.setGraphicsDriverConfig(state.graphicsConfig)
-        container.setRendererNative(state.renderer == "EGL")
+        container.setRendererNative(isOpenGLRendererMode(state.renderer))
         container.setRendererPresentMode(state.rendererPresentMode)
         container.setRendererDriverId(state.rendererDriver)
         container.setRendererFilterMode(state.filterMode)
-        container.setUseDisplayX(state.renderer == "DisplayX")
+        container.setUseDisplayX(state.renderer == RENDERER_MODE_DISPLAYX)
+        container.setUseDri3(isDri3RendererMode(state.renderer))
         container.setSurfaceFormat(state.surfaceFormat)
         container.setTrueDisplayX(state.trueDisplayX)
         container.setDisplayXPerformanceMode(state.displayXPerformanceMode)
@@ -526,7 +537,7 @@ internal fun ContainerEditorV2(editId: Int?, onBack: () -> Unit, onCreated: () -
                 if (state.syncCpu) put("syncCpuTopology", true)
                 put("graphicsDriver", state.graphicsDriver)
                 put("graphicsDriverConfig", state.graphicsConfig)
-                put("rendererNative", state.renderer == "EGL")
+                put("rendererNative", isOpenGLRendererMode(state.renderer))
                 put("rendererPresentMode", state.rendererPresentMode)
                 if (state.rendererDriver.isNotBlank()) put("rendererDriverId", state.rendererDriver)
                 if (state.filterMode != 0) put("rendererFilterMode", state.filterMode)
@@ -555,7 +566,8 @@ internal fun ContainerEditorV2(editId: Int?, onBack: () -> Unit, onCreated: () -
                 put("extraData", JSONObject()
                     .put("hudMode", state.hudMode.toString())
                     .put("mouseWarpOverride", state.mouseWarp)
-                    .put("useDisplayX", if (state.renderer == "DisplayX") "1" else "0")
+                    .put("useDisplayX", if (state.renderer == RENDERER_MODE_DISPLAYX) "1" else "0")
+                    .put("useDri3", if (isDri3RendererMode(state.renderer)) "1" else "0")
                     .put("surfaceFormat", state.surfaceFormat)
                     .put("trueDisplayX", if (state.trueDisplayX) "1" else "0")
                     .put("displayXPerformanceMode", if (state.displayXPerformanceMode) "1" else "0")
@@ -845,10 +857,10 @@ private fun ContainerCategoryV2(
                     SettingText(stringResource(R.string.custom_resolution), s.screen) { s.screen = it }
                 }
                 SettingsDivider()
-                SettingChoice(stringResource(R.string.renderer), s.renderer, listOf("Vulkan", "EGL", "DisplayX")) {
+                SettingChoice(stringResource(R.string.renderer), s.renderer, RENDERER_MODES) {
                     s.renderer = it
-                    s.surfaceFormat = if (it == "DisplayX") "rgba8" else "bgra8"
-                    if (it == "EGL" && s.filterMode > 1) s.filterMode = 0
+                    s.surfaceFormat = if (it == RENDERER_MODE_DISPLAYX) "rgba8" else "bgra8"
+                    if (isOpenGLRendererMode(it) && s.filterMode > 1) s.filterMode = 0
                 }
                 SettingsDivider()
                 SettingChoice(
@@ -856,7 +868,7 @@ private fun ContainerCategoryV2(
                     if (s.surfaceFormat == "bgra8") "BGRA" else "RGBA",
                     listOf("RGBA", "BGRA")
                 ) { s.surfaceFormat = if (it == "BGRA") "bgra8" else "rgba8" }
-                if (s.renderer == "DisplayX") {
+                if (s.renderer == RENDERER_MODE_DISPLAYX) {
                     SettingsDivider()
                     SettingToggle(stringResource(R.string.bypass_x11), s.trueDisplayX) {
                         s.trueDisplayX = it
@@ -878,7 +890,7 @@ private fun ContainerCategoryV2(
                         s.displayXPrecisePresentation = it
                     }
                 } else {
-                    if (s.renderer != "EGL") {
+                    if (!isOpenGLRendererMode(s.renderer)) {
                         SettingsDivider()
                         SettingChoice(stringResource(R.string.present_mode), s.rendererPresentMode, listOf("fifo", "mailbox")) {
                             s.rendererPresentMode = it
@@ -891,7 +903,7 @@ private fun ContainerCategoryV2(
                         }
                     }
                     SettingsDivider()
-                    val filters = if (s.renderer == "EGL") listOf("Bilinear", "Nearest neighbor")
+                    val filters = if (isOpenGLRendererMode(s.renderer)) listOf("Bilinear", "Nearest neighbor")
                     else listOf(
                         "Bilinear",
                         "Nearest neighbor",

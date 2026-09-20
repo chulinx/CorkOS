@@ -306,6 +306,13 @@ public class Shortcut {
     }
     public void setTrueDisplayX(boolean v) { putExtra("trueDisplayX", v ? "1" : "0"); }
 
+    /** Container-level DRI3 pass-through, overridable per shortcut. */
+    public boolean getUseDri3() {
+        String v = getExtra("useDri3", null);
+        return v != null ? v.equals("1") : container.getUseDri3();
+    }
+    public void setUseDri3(boolean v) { putExtra("useDri3", v ? "1" : "0"); }
+
     public String getSurfaceFormat() {
         String v = getExtra("surfaceFormat", null);
         if (v == null || v.isEmpty()) v = getLegacyDisplayXValue("surfaceFormat");

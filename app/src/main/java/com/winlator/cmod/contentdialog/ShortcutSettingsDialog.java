@@ -140,17 +140,27 @@ public class ShortcutSettingsDialog extends ContentDialog implements DXVKConfigD
         final String[] rendererDriverHolder = new String[] { shortcut.getRendererDriverId() };
         final int[] rendererFilterHolder = new int[] { shortcut.getRendererFilterMode() };
         final boolean[] rendererSwapRBHolder = new boolean[] { shortcut.getRendererSwapRB() };
+        final boolean[] useDri3Holder = new boolean[] { shortcut.getUseDri3() };
         final Spinner spRendererMode = findViewById(R.id.SPRendererMode);
         if (spRendererMode != null) {
+            // Five-way selector: Vulkan/OpenGL x 直通模式 (DRI3) / 兼容模式, plus DisplayX.
+            final String[] rendererModes = new String[]{
+                    "Vulkan 兼容模式", "Vulkan 直通模式 (DRI3)", "DisplayX",
+                    "OpenGL 兼容模式", "OpenGL 直通模式"};
             ArrayAdapter<String> rendererModeAdapter = new ArrayAdapter<>(context, R.layout.spinner_item_amoled,
-                    new String[]{"Vulkan", "EGL", "DisplayX"});
+                    rendererModes);
             rendererModeAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item_amoled);
             spRendererMode.setAdapter(rendererModeAdapter);
-            spRendererMode.setSelection(useDisplayXHolder[0] ? 2 : (rendererNativeHolder[0] ? 1 : 0));
+            final int initialRendererIndex;
+            if (useDisplayXHolder[0]) initialRendererIndex = 2;
+            else if (rendererNativeHolder[0]) initialRendererIndex = useDri3Holder[0] ? 4 : 3;
+            else initialRendererIndex = useDri3Holder[0] ? 1 : 0;
+            spRendererMode.setSelection(initialRendererIndex);
             spRendererMode.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
                 public void onItemSelected(android.widget.AdapterView<?> parent, View v, int position, long id) {
-                    rendererNativeHolder[0] = position == 1;
                     useDisplayXHolder[0] = position == 2;
+                    rendererNativeHolder[0] = position >= 3;
+                    useDri3Holder[0] = position == 1 || position == 4;
                 }
                 public void onNothingSelected(android.widget.AdapterView<?> parent) {}
             });
@@ -468,6 +478,7 @@ public class ShortcutSettingsDialog extends ContentDialog implements DXVKConfigD
             shortcut.putExtra("audioDriver", audioDriver);
             shortcut.setRendererNative(rendererNativeHolder[0]);
             shortcut.setUseDisplayX(useDisplayXHolder[0]);
+            shortcut.setUseDri3(useDri3Holder[0]);
             shortcut.setRendererPresentMode(rendererPresentModeHolder[0]);
             shortcut.setRendererDriverId(rendererDriverHolder[0]);
             shortcut.setRendererFilterMode(rendererFilterHolder[0]);
