@@ -313,6 +313,10 @@ public abstract class FileUtils {
         if (path == null) return "";
         path = StringUtils.removeEndSlash(path);
         int index = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+        // A path with no separator at all (e.g. a hand-written shortcut whose escaping collapsed
+        // to "C:foo.exe") used to blow up here: substring(0, -1) throws
+        // StringIndexOutOfBoundsException and takes the whole launcher down.
+        if (index < 0) return "";
         return path.substring(0, index);
     }
 

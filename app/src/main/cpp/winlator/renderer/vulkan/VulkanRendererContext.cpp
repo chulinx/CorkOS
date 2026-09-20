@@ -1449,13 +1449,14 @@ void VulkanRendererContext::collectWindowNodes(int64_t id, int absX, int absY,
     auto it = windowTree.find(id);
     if (it == windowTree.end()) return;
     WinNode& node = it->second;
-    if (!node.mapped) return;
-
+    // An unmapped node must not stop the walk: Wine nests windows under container windows, and if
+    // any ancestor reports mapped=false its whole subtree used to be skipped, leaving renderList
+    // empty and the screen black. Skip only the node's own content and keep descending.
     int myAbsX = absX, myAbsY = absY;
     if (id != rootWindowId) {
         myAbsX = absX + node.x;
         myAbsY = absY + node.y;
-        if (node.viewable) {
+        if (node.mapped && node.viewable) {
             out.push_back({node.contentId, myAbsX, myAbsY});
             outSizes.push_back({node.width, node.height});
         }
