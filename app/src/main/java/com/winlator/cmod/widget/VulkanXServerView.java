@@ -139,6 +139,7 @@ public class VulkanXServerView extends XServerRendererView implements SurfaceHol
     private native void nativeSetFrameGenDebugFlow(long handle, boolean on);
     /** {realFrames, generatedFrames, droppedGenerations} */
     private native long[] nativeGetFrameGenCounts(long handle);
+    private native void nativeSetFrameGenMultiplier(long handle, int mult);
     private native void nativeSetSwapRB(long handle, boolean enabled);
     private native void nativeSetPresentMode(long handle, int mode);
     private native int[] nativeGetSupportedPresentModes(long handle);
@@ -648,6 +649,13 @@ public class VulkanXServerView extends XServerRendererView implements SurfaceHol
 
     public void setFrameGenDebugFlow(boolean on) {
         synchronized (lock) { if (nativeHandle != 0) nativeSetFrameGenDebugFlow(nativeHandle, on); }
+    }
+
+    /** Output multiplier: 2 inserts one generated frame per real frame. */
+    public void setFrameGenMultiplier(int mult) {
+        synchronized (lock) {
+            if (nativeHandle != 0) nativeSetFrameGenMultiplier(nativeHandle, mult);
+        }
     }
 
     /** {realFrames, generatedFrames, droppedGenerations} — all zero when FG never ran. */

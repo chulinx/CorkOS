@@ -1178,10 +1178,14 @@ void VulkanRendererContext::renderFrame() {
                                           swapchainFmt, content);
         }
         sourceFrames++;
+        // Cap by both what the swapchain can hold and the requested multiplier. The multiplier
+        // wins, so the user gets exactly xN instead of "however many the swapchain allowed".
         uint32_t capacity = 0;
         if (swapchainImages.size() > 2) {
             capacity = (uint32_t)swapchainImages.size() - 2;
             if (capacity > FG_MAX_GENERATIONS) capacity = FG_MAX_GENERATIONS;
+            uint32_t want = frameGenMultiplier > 1 ? frameGenMultiplier - 1u : 0u;
+            if (capacity > want) capacity = want;
         }
         uint32_t planned = disPrepared ? vkr_dis_plan(dis, capacity, sourceFrames) : 0;
         uint64_t timeoutNs = 8000000ull;

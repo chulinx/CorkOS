@@ -165,6 +165,12 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private XServer xServer;
     private InputControlsManager inputControlsManager;
     private ImageFs imageFs;
+    // Frame generation state: quality preset (0 = Off) and requested output multiplier (x2 by default).
+    private static final int[] FG_MIN_SIDE = {0, 180, 252, 360};
+    private int frameGenQualityPos = 0;
+    private int frameGenMultiplier = 2;
+    private android.widget.Spinner fgMultSpinner = null;
+
     // Frame generation debug overlay (rates are derived from the DIS counters).
     private android.widget.TextView fgDebugOverlay = null;
     private final android.os.Handler fgDebugHandler = new android.os.Handler(android.os.Looper.getMainLooper());
@@ -2014,27 +2020,56 @@ public class XServerDisplayActivity extends AppCompatActivity {
         // its optical flow pyramid. A fixed pixel budget costs the same on a 720p and a 1440p
         // container, so lower is cheaper and higher tracks small or fast-moving detail better.
         final String[] frameGenLabels = {"Off", "Fast", "Balance", "Quality"};
-        final int[] frameGenMinSide   = {0, 180, 252, 360};
         if (spFrameGenFPS != null) {
             ArrayAdapter<String> a = createSidebarSpinnerAdapter(frameGenLabels);
             a.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
             spFrameGenFPS.setAdapter(a);
             spFrameGenFPS.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
                 @Override public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
-                    if (vkRenderer == null) return;
-                    float refresh = 60f;
-                    android.view.Display display = getWindowManager().getDefaultDisplay();
-                    if (display != null) {
-                        float r = display.getRefreshRate();
-                        if (r > 1f) refresh = r;
-                    }
-                    boolean enabled = pos > 0;
-                    vkRenderer.setFrameGenEnabled(enabled, frameGenMinSide[pos], 0, refresh);
+                    frameGenQualityPos = pos;
+                    applyFrameGen();
                 }
                 @Override public void onNothingSelected(AdapterView<?> p) {}
+
             });
+            // Output multiplier (how many frames are shown per real frame). Default x2.
+            android.view.ViewGroup fgCard = findViewById(R.id.LLFrameGenOptions);
+            if (fgMultSpinner == null && fgCard != null) {
+                fgMultSpinner = new Spinner(this);
+                ArrayAdapter<String> ma = createSidebarSpinnerAdapter(new String[]{"x2", "x3", "x4"});
+                ma.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                fgMultSpinner.setAdapter(ma);
+                fgMultSpinner.setSelection(0); // x2
+                fgMultSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                    @Override public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
+                        frameGenMultiplier = 2 + pos;
+                        applyFrameGen();
+                    }
+                    @Override public void onNothingSelected(AdapterView<?> p) {}
+                });
+                android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
+                        android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+                lp.topMargin = 8;
+                fgCard.addView(fgMultSpinner, lp);
+            }
             setupFrameGenDebugOverlay();
         }
+    }
+
+    /** Applies both the quality preset and the output multiplier as one atomic change. */
+    private void applyFrameGen() {
+        if (!(xServerView instanceof VulkanXServerView)) return;
+        VulkanXServerView v = (VulkanXServerView) xServerView;
+        v.setFrameGenMultiplier(frameGenMultiplier);
+        float refresh = 60f;
+        android.view.Display display = getWindowManager().getDefaultDisplay();
+        if (display != null) {
+            float r = display.getRefreshRate();
+            if (r > 1f) refresh = r;
+        }
+        boolean enabled = frameGenQualityPos > 0;
+        v.setFrameGenEnabled(enabled, FG_MIN_SIDE[frameGenQualityPos], 0, refresh);
     }
 
     /** Small always-on-top readout so DIS accounting can be seen while playing. */

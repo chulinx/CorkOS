@@ -345,6 +345,9 @@ public:
     bool        frameGenEnabled     = false;
     bool        frameGenDebugFlow   = false;
     uint32_t    frameGenFlowMinSide = 180;    // Fast 180 / Balance 252 / Quality 360 px
+    // Requested output multiplier (2 -> insert one generated frame per real frame). Without this the
+    // multiplier is whatever the swapchain image count allows, which is why it used to sit at x3.0.
+    uint32_t    frameGenMultiplier  = 2;
     uint32_t    frameGenTargetFps   = 0;      // 0 = follow the panel refresh rate
     float       frameGenRefreshRate = 60.0f;
     VkrDis*     dis = nullptr;

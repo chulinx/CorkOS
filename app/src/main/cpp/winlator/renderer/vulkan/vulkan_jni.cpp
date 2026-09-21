@@ -410,3 +410,11 @@ Java_com_winlator_cmod_widget_VulkanXServerView_nativeGetFrameGenCounts(
     if (arr) env->SetLongArrayRegion(arr, 0, 3, out);
     return arr;
 }
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_widget_VulkanXServerView_nativeSetFrameGenMultiplier(
+    JNIEnv*, jobject, jlong handle, jint mult)
+{
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->frameGenMultiplier = (mult >= 2) ? (uint32_t)mult : 2u;
+}
