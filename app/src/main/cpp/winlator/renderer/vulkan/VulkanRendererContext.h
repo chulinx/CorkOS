@@ -84,6 +84,7 @@ struct VkTable {
     PFN_vkCmdSetScissor CmdSetScissor;
     PFN_vkCmdPipelineBarrier CmdPipelineBarrier;
     PFN_vkCmdCopyImage CmdCopyImage;
+    PFN_vkCmdBlitImage CmdBlitImage;
     PFN_vkCmdCopyBufferToImage CmdCopyBufferToImage;
     PFN_vkCreateSampler CreateSampler;
     PFN_vkDestroySampler DestroySampler;
@@ -352,6 +353,23 @@ public:
     VkFramebuffer  composeFB         = VK_NULL_HANDLE;
     VkRenderPass   composeRenderPass = VK_NULL_HANDLE;
     VkExtent2D     composeExt{0, 0};
+    // Generation targets: DIS writes each interpolated frame into one of these, which is then
+    // blitted into an acquired swapchain image (same shape as WinNative's fg_present.c).
+    static constexpr uint32_t FG_MAX_GENERATIONS = VKR_DIS_MAX_GENERATIONS;
+    VkImage        genImages[FG_MAX_GENERATIONS]{};
+    VkDeviceMemory genMemories[FG_MAX_GENERATIONS]{};
+    VkImageView    genViews[FG_MAX_GENERATIONS]{};
+    // recordCmdBuf() ends its command buffer, so the DIS passes get their own command buffer
+    // that is submitted after the scene pass and waits on disSem.
+    VkCommandBuffer disCmd = VK_NULL_HANDLE;
+    VkSemaphore     disSem = VK_NULL_HANDLE;
+    VkSemaphore     genAcqSems[FG_MAX_GENERATIONS]{};
+    // One semaphore per presented image (generated frames + the real frame).
+    VkSemaphore     fgPresentSems[FG_MAX_GENERATIONS + 1]{};
+    uint64_t        sourceFrames = 0;
+    bool            disPrepared  = false;
+
+    void recordFrameGenCommands(uint32_t genCount, const uint32_t* genIndex, uint32_t realIndex);
 
     void setFrameGenEnabled(bool enabled);
     void setFrameGenConfig(uint32_t flowMinSide, uint32_t targetFps, float refreshRate);

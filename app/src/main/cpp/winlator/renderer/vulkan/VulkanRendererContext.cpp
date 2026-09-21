@@ -150,6 +150,7 @@ void VulkanRendererContext::loadDeviceDispatch() {
     LOAD_D2(CmdSetScissor);
     LOAD_D2(CmdPipelineBarrier);
     LOAD_D2(CmdCopyImage);
+    LOAD_D2(CmdBlitImage);
     LOAD_D2(CmdCopyBufferToImage);
     LOAD_D2(CreateSampler);
     LOAD_D2(DestroySampler);
@@ -1152,28 +1153,175 @@ void VulkanRendererContext::renderFrame() {
         fgActive ? composeFB : swapchainFBs[imgIdx],
         fgActive ? composeRenderPass : renderPass);
 
-    VkSemaphore wSem[]={imgAvailSems[currentFrame]}, sSem[]={renderDoneSems[currentFrame]};
-    VkPipelineStageFlags wStage[]={VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-    VkSubmitInfo si{}; si.sType=VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    si.waitSemaphoreCount=1; si.pWaitSemaphores=wSem; si.pWaitDstStageMask=wStage;
-    si.commandBufferCount=1; si.pCommandBuffers=&cmdBufs[currentFrame];
-    si.signalSemaphoreCount=1; si.pSignalSemaphores=sSem;
+    // ---------------------------------------------------------------- frame generation
+    // With FG on the scene is already in composeImage.  Ask DIS how many frames it wants to
+    // insert, then acquire one extra swapchain image per generated frame.  A short acquire
+    // timeout lets us drop a generated frame instead of stalling the pipeline.
+    uint32_t genCount = 0;
+    uint32_t genIndex[FG_MAX_GENERATIONS] = {0};
+    if (fgActive) {
+        VkrDisContentRect content{0, 0, swapchainExt.width, swapchainExt.height};
+        if (!disPrepared
+                || vkr_dis_needs_rebuild(dis, swapchainExt.width, swapchainExt.height,
+                                         swapchainFmt, content)) {
+            vkr_dis_forget_targets(dis);
+            disPrepared = vkr_dis_prepare(dis, swapchainExt.width, swapchainExt.height,
+                                          swapchainFmt, content);
+        }
+        sourceFrames++;
+        uint32_t capacity = 0;
+        if (swapchainImages.size() > 2) {
+            capacity = (uint32_t)swapchainImages.size() - 2;
+            if (capacity > FG_MAX_GENERATIONS) capacity = FG_MAX_GENERATIONS;
+        }
+        uint32_t planned = disPrepared ? vkr_dis_plan(dis, capacity, sourceFrames) : 0;
+        uint64_t timeoutNs = 8000000ull;
+        if (frameGenRefreshRate > 1.0f) {
+            timeoutNs = (uint64_t)(2000000000.0f / frameGenRefreshRate);
+            if (timeoutNs < 1000000ull) timeoutNs = 1000000ull;
+            if (timeoutNs > 8000000ull) timeoutNs = 8000000ull;
+        }
+        for (uint32_t g = 0; g < planned; g++) {
+            if (genAcqSems[g] == VK_NULL_HANDLE) {
+                VkSemaphoreCreateInfo sci{};
+                sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+                if (vk_.CreateSemaphore(device, &sci, nullptr, &genAcqSems[g]) != VK_SUCCESS) break;
+            }
+            uint32_t idx = 0;
+            VkResult ga = vk_.AcquireNextImageKHR(device, swapchain, timeoutNs,
+                                                  genAcqSems[g], VK_NULL_HANDLE, &idx);
+            if (ga != VK_SUCCESS && ga != VK_SUBOPTIMAL_KHR) break;
+            genIndex[genCount++] = idx;
+        }
+    }
 
-    vk_.ResetFences(device,1,&inFlightFences[currentFrame]);
-    if (vk_.QueueSubmit(graphicsQueue,1,&si,inFlightFences[currentFrame])!=VK_SUCCESS) {
-        vk_.DestroyFence(device,inFlightFences[currentFrame],nullptr);
-        VkFenceCreateInfo fi{}; fi.sType=VK_STRUCTURE_TYPE_FENCE_CREATE_INFO; fi.flags=VK_FENCE_CREATE_SIGNALED_BIT;
-        vk_.CreateFence(device,&fi,nullptr,&inFlightFences[currentFrame]);
+    vk_.ResetFences(device, 1, &inFlightFences[currentFrame]);
+    bool submitted = false;
+    VkSemaphore presentSem = renderDoneSems[currentFrame];
+
+    if (fgActive && disPrepared) {
+        // Scene pass writes only to composeImage, so it needs no acquired swapchain image.
+        if (disSem == VK_NULL_HANDLE || disCmd == VK_NULL_HANDLE) { fgActive = false; }
+    }
+
+    if (fgActive && disPrepared) {
+        VkSubmitInfo si1{};
+        si1.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        si1.commandBufferCount = 1;
+        si1.pCommandBuffers = &cmdBufs[currentFrame];
+        si1.signalSemaphoreCount = 1;
+        si1.pSignalSemaphores = &disSem;
+        submitted = vk_.QueueSubmit(graphicsQueue, 1, &si1, VK_NULL_HANDLE) == VK_SUCCESS;
+
+        if (submitted) {
+            recordFrameGenCommands(genCount, genIndex, imgIdx);
+            VkSemaphore waits[2 + FG_MAX_GENERATIONS];
+            VkPipelineStageFlags stages[2 + FG_MAX_GENERATIONS];
+            VkSemaphore signals[1 + FG_MAX_GENERATIONS];
+            uint32_t waitCount = 0;
+            waits[waitCount] = imgAvailSems[currentFrame];
+            stages[waitCount++] = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            waits[waitCount] = disSem;
+            stages[waitCount++] = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            for (uint32_t g = 0; g < genCount; g++) {
+                waits[waitCount] = genAcqSems[g];
+                stages[waitCount++] = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            }
+            // One semaphore per presented image: a single binary semaphore cannot be waited on
+            // by several present operations.
+            uint32_t signalCount = 0;
+            for (uint32_t g = 0; g < genCount; g++) {
+                if (fgPresentSems[g] == VK_NULL_HANDLE) {
+                    VkSemaphoreCreateInfo sci{};
+                    sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+                    vk_.CreateSemaphore(device, &sci, nullptr, &fgPresentSems[g]);
+                }
+                signals[signalCount++] = fgPresentSems[g];
+            }
+            if (fgPresentSems[FG_MAX_GENERATIONS] == VK_NULL_HANDLE) {
+                VkSemaphoreCreateInfo sci{};
+                sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+                vk_.CreateSemaphore(device, &sci, nullptr, &fgPresentSems[FG_MAX_GENERATIONS]);
+            }
+            signals[signalCount++] = fgPresentSems[FG_MAX_GENERATIONS];
+            presentSem = VK_NULL_HANDLE;
+
+            VkSubmitInfo si2{};
+            si2.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+            si2.waitSemaphoreCount = waitCount;
+            si2.pWaitSemaphores = waits;
+            si2.pWaitDstStageMask = stages;
+            si2.commandBufferCount = 1;
+            si2.pCommandBuffers = &disCmd;
+            si2.signalSemaphoreCount = signalCount;
+            si2.pSignalSemaphores = signals;
+            submitted = vk_.QueueSubmit(graphicsQueue, 1, &si2, inFlightFences[currentFrame])
+                    == VK_SUCCESS;
+        }
+    } else {
+        VkSemaphore wSem[] = {imgAvailSems[currentFrame]};
+        VkSemaphore sSem[] = {renderDoneSems[currentFrame]};
+        VkPipelineStageFlags wStage[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+        VkSubmitInfo si{};
+        si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        si.waitSemaphoreCount = 1;
+        si.pWaitSemaphores = wSem;
+        si.pWaitDstStageMask = wStage;
+        si.commandBufferCount = 1;
+        si.pCommandBuffers = &cmdBufs[currentFrame];
+        si.signalSemaphoreCount = 1;
+        si.pSignalSemaphores = sSem;
+        submitted = vk_.QueueSubmit(graphicsQueue, 1, &si, inFlightFences[currentFrame])
+                == VK_SUCCESS;
+    }
+
+    if (!submitted) {
+        vk_.DestroyFence(device, inFlightFences[currentFrame], nullptr);
+        VkFenceCreateInfo fi{};
+        fi.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fi.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        vk_.CreateFence(device, &fi, nullptr, &inFlightFences[currentFrame]);
         return;
     }
-    VkSwapchainKHR scs[]={swapchain};
-    VkPresentInfoKHR pi{}; pi.sType=VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    pi.waitSemaphoreCount=1; pi.pWaitSemaphores=sSem; pi.swapchainCount=1; pi.pSwapchains=scs; pi.pImageIndices=&imgIdx;
 
-    res = vk_.QueuePresentKHR(graphicsQueue, &pi);
+    VkSwapchainKHR scs[] = {swapchain};
+    if (presentSem == VK_NULL_HANDLE) {
+        // Generated frames sit between the previous and the current real frame, so they are
+        // presented first and the real frame closes the sequence.
+        for (uint32_t g = 0; g < genCount; g++) {
+            VkPresentInfoKHR gpi{};
+            gpi.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+            gpi.waitSemaphoreCount = 1;
+            gpi.pWaitSemaphores = &fgPresentSems[g];
+            gpi.swapchainCount = 1;
+            gpi.pSwapchains = scs;
+            gpi.pImageIndices = &genIndex[g];
+            VkResult gres = vk_.QueuePresentKHR(graphicsQueue, &gpi);
+            if (gres == VK_ERROR_OUT_OF_DATE_KHR || gres == VK_ERROR_SURFACE_LOST_KHR
+                    || gres == VK_SUBOPTIMAL_KHR) fbResized.store(true);
+        }
+        VkPresentInfoKHR pi{};
+        pi.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        pi.waitSemaphoreCount = 1;
+        pi.pWaitSemaphores = &fgPresentSems[FG_MAX_GENERATIONS];
+        pi.swapchainCount = 1;
+        pi.pSwapchains = scs;
+        pi.pImageIndices = &imgIdx;
+        res = vk_.QueuePresentKHR(graphicsQueue, &pi);
+    } else {
+        VkPresentInfoKHR pi{};
+        pi.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        pi.waitSemaphoreCount = 1;
+        pi.pWaitSemaphores = &presentSem;
+        pi.swapchainCount = 1;
+        pi.pSwapchains = scs;
+        pi.pImageIndices = &imgIdx;
+        res = vk_.QueuePresentKHR(graphicsQueue, &pi);
+    }
 
-    if (res==VK_ERROR_OUT_OF_DATE_KHR||res==VK_ERROR_SURFACE_LOST_KHR||res==VK_SUBOPTIMAL_KHR) fbResized.store(true);
-    currentFrame=(currentFrame+1)%MAX_FRAMES_IN_FLIGHT;
+    if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_ERROR_SURFACE_LOST_KHR
+            || res == VK_SUBOPTIMAL_KHR) fbResized.store(true);
+    currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 void VulkanRendererContext::onSurfaceResized(int w, int h) {
@@ -1548,6 +1696,11 @@ void VulkanRendererContext::createComposeRenderPass() {
 }
 
 void VulkanRendererContext::destroyFrameGenTargets() {
+    for (uint32_t i = 0; i < FG_MAX_GENERATIONS; i++) {
+        if (genViews[i] != VK_NULL_HANDLE) { vk_.DestroyImageView(device, genViews[i], nullptr); genViews[i] = VK_NULL_HANDLE; }
+        if (genImages[i] != VK_NULL_HANDLE) { vk_.DestroyImage(device, genImages[i], nullptr); genImages[i] = VK_NULL_HANDLE; }
+        if (genMemories[i] != VK_NULL_HANDLE) { vk_.FreeMemory(device, genMemories[i], nullptr); genMemories[i] = VK_NULL_HANDLE; }
+    }
     if (composeFB != VK_NULL_HANDLE) { vk_.DestroyFramebuffer(device, composeFB, nullptr); composeFB = VK_NULL_HANDLE; }
     if (composeView != VK_NULL_HANDLE) { vk_.DestroyImageView(device, composeView, nullptr); composeView = VK_NULL_HANDLE; }
     if (composeImage != VK_NULL_HANDLE) { vk_.DestroyImage(device, composeImage, nullptr); composeImage = VK_NULL_HANDLE; }
@@ -1610,8 +1763,126 @@ bool VulkanRendererContext::ensureFrameGen(uint32_t width, uint32_t height) {
     fi.layers = 1;
     if (vk_.CreateFramebuffer(device, &fi, nullptr, &composeFB) != VK_SUCCESS) { destroyFrameGenTargets(); return false; }
 
+    // Generation targets: same size/format as the composite, kept in GENERAL layout so DIS can
+    // write into them and we can blit straight out of them.
+    for (uint32_t i = 0; i < FG_MAX_GENERATIONS; i++) {
+        VkImageCreateInfo gi{};
+        gi.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        gi.imageType = VK_IMAGE_TYPE_2D;
+        gi.format = swapchainFmt;
+        gi.extent = {width, height, 1};
+        gi.mipLevels = 1;
+        gi.arrayLayers = 1;
+        gi.samples = VK_SAMPLE_COUNT_1_BIT;
+        gi.tiling = VK_IMAGE_TILING_OPTIMAL;
+        gi.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
+                 | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                 | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        gi.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        if (vk_.CreateImage(device, &gi, nullptr, &genImages[i]) != VK_SUCCESS) { destroyFrameGenTargets(); return false; }
+
+        VkMemoryRequirements greq{};
+        vk_.GetImageMemoryRequirements(device, genImages[i], &greq);
+        VkMemoryAllocateInfo gai{};
+        gai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        gai.allocationSize = greq.size;
+        gai.memoryTypeIndex = findMemType(greq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        if (gai.memoryTypeIndex == UINT32_MAX
+                || vk_.AllocateMemory(device, &gai, nullptr, &genMemories[i]) != VK_SUCCESS) {
+            destroyFrameGenTargets();
+            return false;
+        }
+        vk_.BindImageMemory(device, genImages[i], genMemories[i], 0);
+
+        VkImageViewCreateInfo gvi{};
+        gvi.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        gvi.image = genImages[i];
+        gvi.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        gvi.format = swapchainFmt;
+        gvi.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+        if (vk_.CreateImageView(device, &gvi, nullptr, &genViews[i]) != VK_SUCCESS) { destroyFrameGenTargets(); return false; }
+    }
+
     composeExt = {width, height};
     return true;
+}
+
+void VulkanRendererContext::recordFrameGenCommands(uint32_t genCount, const uint32_t* genIndex,
+                                                   uint32_t realIndex) {
+    VkCommandBuffer cmd = disCmd;
+    if (cmd == VK_NULL_HANDLE || dis == nullptr) return;
+
+    vk_.ResetCommandBuffer(cmd, 0);
+    VkCommandBufferBeginInfo bi{};
+    bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    if (vk_.BeginCommandBuffer(cmd, &bi) != VK_SUCCESS) return;
+
+    auto barrier = [&](VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
+                       VkAccessFlags srcAccess, VkAccessFlags dstAccess,
+                       VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage) {
+        VkImageMemoryBarrier b{};
+        b.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        b.image = image;
+        b.oldLayout = oldLayout;
+        b.newLayout = newLayout;
+        b.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        b.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        b.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+        b.srcAccessMask = srcAccess;
+        b.dstAccessMask = dstAccess;
+        vk_.CmdPipelineBarrier(cmd, srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &b);
+    };
+
+    auto blit = [&](VkImage src, VkImageLayout srcLayout, VkImage dst, VkImageLayout dstLayout) {
+        VkImageBlit region{};
+        region.srcSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+        region.dstSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+        region.srcOffsets[1] = {(int32_t)swapchainExt.width, (int32_t)swapchainExt.height, 1};
+        region.dstOffsets[1] = {(int32_t)swapchainExt.width, (int32_t)swapchainExt.height, 1};
+        vk_.CmdBlitImage(cmd, src, srcLayout, dst, dstLayout, 1, &region, VK_FILTER_LINEAR);
+    };
+
+    // The compose render pass leaves the image shader-readable; DIS wants it in GENERAL.
+    barrier(composeImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL,
+            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+
+    vkr_dis_process(dis, cmd, composeImage, swapchainExt.width, swapchainExt.height, genCount);
+
+    // Generated frames first: they sit between the previous and the current real frame.
+    for (uint32_t g = 0; g < genCount; g++) {
+        vkr_dis_generate_into(dis, cmd, g, g, genImages[g], genViews[g], swapchainExt.width,
+                              swapchainExt.height, VK_NULL_HANDLE);
+        barrier(genImages[g], VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT,
+                VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+        barrier(swapchainImages[genIndex[g]], VK_IMAGE_LAYOUT_UNDEFINED,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0, VK_ACCESS_TRANSFER_WRITE_BIT,
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+        blit(genImages[g], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+             swapchainImages[genIndex[g]], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        barrier(swapchainImages[genIndex[g]], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_ACCESS_TRANSFER_WRITE_BIT, 0,
+                VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+    }
+
+    // Then the real frame.
+    barrier(composeImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT,
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+    barrier(swapchainImages[realIndex], VK_IMAGE_LAYOUT_UNDEFINED,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0, VK_ACCESS_TRANSFER_WRITE_BIT,
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+    blit(composeImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+         swapchainImages[realIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    barrier(swapchainImages[realIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_ACCESS_TRANSFER_WRITE_BIT, 0,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+
+    vk_.EndCommandBuffer(cmd);
 }
 
 void VulkanRendererContext::setFrameGenEnabled(bool enabled) {
@@ -1619,12 +1890,33 @@ void VulkanRendererContext::setFrameGenEnabled(bool enabled) {
     frameGenEnabled = enabled;
     if (!enabled) {
         if (dis) { vkr_dis_destroy(dis); dis = nullptr; }
+        if (disSem != VK_NULL_HANDLE) { vk_.DestroySemaphore(device, disSem, nullptr); disSem = VK_NULL_HANDLE; }
+        if (disCmd != VK_NULL_HANDLE && cmdPool != VK_NULL_HANDLE) {
+            vk_.FreeCommandBuffers(device, cmdPool, 1, &disCmd);
+            disCmd = VK_NULL_HANDLE;
+        }
+        disPrepared = false;
         destroyFrameGenTargets();
     } else if (dis == nullptr && device != VK_NULL_HANDLE) {
         dis = vkr_dis_create(device, physicalDevice);
         if (!dis) { frameGenEnabled = false; return; }
         vkr_dis_configure(dis, frameGenFlowMinSide, frameGenTargetFps, frameGenRefreshRate);
         vkr_dis_set_debug_flow(dis, frameGenDebugFlow);
+        if (disCmd == VK_NULL_HANDLE && cmdPool != VK_NULL_HANDLE) {
+            VkCommandBufferAllocateInfo ai{};
+            ai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+            ai.commandPool = cmdPool;
+            ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+            ai.commandBufferCount = 1;
+            if (vk_.AllocateCommandBuffers(device, &ai, &disCmd) != VK_SUCCESS)
+                disCmd = VK_NULL_HANDLE;
+        }
+        if (disSem == VK_NULL_HANDLE) {
+            VkSemaphoreCreateInfo sci{};
+            sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+            if (vk_.CreateSemaphore(device, &sci, nullptr, &disSem) != VK_SUCCESS)
+                disSem = VK_NULL_HANDLE;
+        }
     }
     fbResized.store(true);
     dirtyCV.notify_one();
