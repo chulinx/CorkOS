@@ -668,7 +668,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent,
                 PendingIntent.FLAG_IMMUTABLE);
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_stat_ab_gear_0011)
+                .setSmallIcon(R.drawable.ic_stat_corker)
                 .setContentTitle(getString(R.string.app_name))
                 .setContentText(getString(R.string.running_notification))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)

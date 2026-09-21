@@ -343,19 +343,14 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     @Override
     public boolean onOptionsItemSelected(MenuItem menuItem) {
         if (menuItem.getItemId() == android.R.id.home) {
-            Fragment current = getSupportFragmentManager().findFragmentById(R.id.FLFragmentContainer);
-            if (current instanceof GameDetailFragment
-                    || current instanceof ContainerOverviewFragment
-                    || current instanceof ContainerDetailFragment
-                    || current instanceof ContainerSectionFragment) {
+            // The toolbar's home button used to be a no-op for every fragment that was not in a
+            // hard-coded list, so Back did nothing on Settings, Components and the rest. Decide by
+            // what is actually on the back stack instead of by fragment class.
+            if (getSupportFragmentManager().getBackStackEntryCount() > 0 || editInputControls) {
                 onBackPressed();
-                return true;
+            } else {
+                toggleDrawer();
             }
-            if (editInputControls) {
-                onBackPressed();
-                return true;
-            }
-
             return true;
         } else {
             return super.onOptionsItemSelected(menuItem);
