@@ -80,18 +80,21 @@ public class IngameSidebarThemeLayout extends FrameLayout {
         normalizeLegacyTree(this);
         forceKnownLegacyIconTints();
         fitMetricText();
+        alignSeekBars(this);
 
         post(() -> {
             hideLegacyRailAndSetContentGutter();
             localizeSidebarText(this);
             normalizeLegacyTree(this);
             forceKnownLegacyIconTints();
+            alignSeekBars(this);
         });
         postDelayed(() -> {
             localizeSidebarText(this);
             normalizeLegacyTree(this);
             forceKnownLegacyIconTints();
             wrapLegacySpinnerAdapters(this);
+            alignSeekBars(this);
         }, 500);
     }
 
@@ -393,6 +396,30 @@ public class IngameSidebarThemeLayout extends FrameLayout {
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     Math.max(1, (int) (getResources().getDisplayMetrics().density * 0.5f)));
             group.addView(line, i, lp);
+        }
+    }
+
+    /**
+     * Line the slider track up with the labels above it.
+     *
+     * SeekBar ships with a ~16dp horizontal inset (room for the thumb), so the track sat noticeably
+     * inside the label and the right-aligned value. Zero the padding and stop the parent clipping,
+     * otherwise the thumb gets cut off at 0% and 100%.
+     */
+    private void alignSeekBars(View view) {
+        if (view instanceof android.widget.SeekBar) {
+            android.widget.SeekBar bar = (android.widget.SeekBar) view;
+            bar.setPadding(0, bar.getPaddingTop(), 0, bar.getPaddingBottom());
+            if (bar.getParent() instanceof ViewGroup) {
+                ViewGroup parent = (ViewGroup) bar.getParent();
+                parent.setClipChildren(false);
+                parent.setClipToPadding(false);
+            }
+            return;
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) alignSeekBars(group.getChildAt(i));
         }
     }
 

@@ -1341,6 +1341,15 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 ControlsProfile profile = inputControlsManager.getProfile(Integer.parseInt(controlsProfile));
                 if (profile != null)
                     showInputControls(profile);
+            } else if (!hasPhysicalGamepad()) {
+                // Nothing configured and no controller attached: bring up the built-in virtual
+                // gamepad so the player has controls instead of an empty screen and a profile list.
+                for (ControlsProfile p : inputControlsManager.getProfiles()) {
+                    if (p.getName() != null && p.getName().contains("Virtual Gamepad")) {
+                        showInputControls(p);
+                        break;
+                    }
+                }
             }
 
             String simTouchScreen = shortcut.getExtra("simTouchScreen");
@@ -2302,9 +2311,30 @@ public class XServerDisplayActivity extends AppCompatActivity {
         dialog.show();
     }
 
+    /**
+     * True when a real controller is attached, in which case the on-screen pad would just be in the
+     * way. Phones with nothing plugged in get the virtual gamepad shown by default instead of
+     * having to find the toggle first.
+     */
+    private boolean hasPhysicalGamepad() {
+        for (int id : android.view.InputDevice.getDeviceIds()) {
+            android.view.InputDevice device = android.view.InputDevice.getDevice(id);
+            if (device == null) continue;
+            int sources = device.getSources();
+            if ((sources & android.view.InputDevice.SOURCE_GAMEPAD) == android.view.InputDevice.SOURCE_GAMEPAD
+                    || (sources & android.view.InputDevice.SOURCE_JOYSTICK) == android.view.InputDevice.SOURCE_JOYSTICK) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void simulateConfirmInputControlsDialog() {
 
-        boolean isShowTouchscreenControls = preferences.getBoolean("show_touchscreen_controls_enabled", false);
+        boolean isShowTouchscreenControls =
+                preferences.getBoolean("show_touchscreen_controls_enabled", !hasPhysicalGamepad());
+        // A profile already being shown means the pad is wanted; don't let a stale preference hide it.
+        if (inputControlsView.getProfile() != null) isShowTouchscreenControls = true;
 
         inputControlsView.setShowTouchscreenControls(isShowTouchscreenControls);
 
@@ -2392,6 +2422,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         }
 
         inputControlsView.setProfile(profile);
+        inputControlsView.setShowTouchscreenControls(true);
         inputControlsView.setVisibility(View.VISIBLE);
         inputControlsView.requestFocus();
 
