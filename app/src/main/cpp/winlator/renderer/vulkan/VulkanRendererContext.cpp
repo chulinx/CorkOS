@@ -1890,21 +1890,20 @@ void VulkanRendererContext::recordFrameGenCommands(uint32_t genCount, const uint
 
     vkr_dis_process(dis, cmd, composeImage, swapchainExt.width, swapchainExt.height, genCount);
 
-    // Generated frames first: they sit between the previous and the current real frame.
+    // Generated frames first: they sit between the previous and the current real frame.  DIS writes
+    // straight into the acquired swapchain image, which saves a full-resolution blit per generated
+    // frame compared with generating into an intermediate target and copying it over.
+
     for (uint32_t g = 0; g < genCount; g++) {
-        vkr_dis_generate_into(dis, cmd, g, g, genImages[g], genViews[g], swapchainExt.width,
-                              swapchainExt.height, VK_NULL_HANDLE);
-        barrier(genImages[g], VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT,
-                VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
-        barrier(swapchainImages[genIndex[g]], VK_IMAGE_LAYOUT_UNDEFINED,
-                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0, VK_ACCESS_TRANSFER_WRITE_BIT,
-                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
-        blit(genImages[g], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-             swapchainImages[genIndex[g]], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-        barrier(swapchainImages[genIndex[g]], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_ACCESS_TRANSFER_WRITE_BIT, 0,
-                VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+        barrier(swapchainImages[genIndex[g]], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 0,
+                VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT,
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+        vkr_dis_generate_into(dis, cmd, g, g, swapchainImages[genIndex[g]],
+                              swapchainViews[genIndex[g]], swapchainExt.width, swapchainExt.height,
+                              VK_NULL_HANDLE);
+        barrier(swapchainImages[genIndex[g]], VK_IMAGE_LAYOUT_GENERAL,
+                VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_ACCESS_SHADER_WRITE_BIT, 0,
+                VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
     }
 
     // Then the real frame.
