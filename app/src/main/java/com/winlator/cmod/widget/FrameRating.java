@@ -25,7 +25,9 @@ public class FrameRating extends FrameLayout implements Runnable {
     private Context context;
     private long lastTime = 0;
     private int frameCount = 0;
+    private int genCount = 0;
     private float lastFPS = 0;
+    private float lastGenFPS = 0;
     private String totalRAM = null;
     private final TextView tvFPS;
     private final TextView tvRenderer;
@@ -142,28 +144,33 @@ public class FrameRating extends FrameLayout implements Runnable {
         long time = SystemClock.elapsedRealtime();
         if (time >= lastTime + 500) {
             lastFPS = ((float)(frameCount * 1000) / (time - lastTime));
+            lastGenFPS = ((float)(genCount * 1000) / (time - lastTime));
             post(this);
             lastTime = time;
             frameCount = 0;
+            genCount = 0;
         }
         frameCount++;
     }
 
-    /**
-     * Frame generation presents interpolated frames the source-frame counter never sees; add them
-     * here so the HUD reports what is actually on screen.
-     */
+    /** Interpolated frames, recorded separately so the HUD can show source / multiplier / result. */
     public void addGeneratedFrames(int n) {
         if (n <= 0) return;
         if (!userEnabled) return;
-        frameCount += n;
+        genCount += n;
+    }
+
+    private String formatFps() {
+        if (lastGenFPS <= 0f || lastFPS < 1f) return String.format(Locale.ENGLISH, "%.1f", lastFPS);
+        float shown = lastFPS + lastGenFPS;
+        return String.format(Locale.ENGLISH, "%.0f  x%.1f  %.0f", lastFPS, shown / lastFPS, shown);
     }
 
     @Override
     public void run() {
         if (!userEnabled) return;
         if (getVisibility() == GONE) setVisibility(View.VISIBLE);
-        tvFPS.setText(String.format(Locale.ENGLISH, "%.1f", lastFPS));
+        tvFPS.setText(formatFps());
         tvRAM.setText(getAvailableRAM() + " GB Used / " + totalRAM + " Total");
     }
 }

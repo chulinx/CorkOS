@@ -177,6 +177,8 @@ public class WinlatorHUD extends View {
             };
 
     private final AtomicInteger frameAccum = new AtomicInteger(0);
+    // Interpolated frames are counted separately so the HUD can show source / multiplier / result.
+    private final AtomicInteger genAccum = new AtomicInteger(0);
     private long lastFpsNs = 0;
     private float snapFps = 0;
 
@@ -429,12 +431,12 @@ public class WinlatorHUD extends View {
 
     /**
      * Frame generation presents interpolated frames that the source-frame counter never sees, so
-     * they have to be added here for the HUD to report what is actually on screen.
+     * they have to be recorded here for the HUD to report what is actually on screen.
      */
     public void addGeneratedFrames(int n) {
         if (n <= 0) return;
         if (!rendererActive && !userEnabled) return;
-        frameAccum.addAndGet(n);
+        genAccum.addAndGet(n);
     }
 
     public void update() {
@@ -725,10 +727,19 @@ public class WinlatorHUD extends View {
         if (dt < 350_000_000L) return;
 
         int frames = frameAccum.getAndSet(0);
-        snapFps = frames * 1_000_000_000f / dt;
+        int gen = genAccum.getAndSet(0);
+        float srcFps = frames * 1_000_000_000f / dt;
+        snapFps = (frames + gen) * 1_000_000_000f / dt;
         lastFpsNs = now;
 
-        String value = String.format(Locale.US, "%.0f", snapFps);
+        // With frame generation on show "source  xN  result", otherwise just the plain fps.
+        String value;
+        if (gen > 0 && frames > 0) {
+            float mult = (float)(frames + gen) / (float)frames;
+            value = String.format(Locale.US, "%.0f  x%.1f  %.0f", srcFps, mult, snapFps);
+        } else {
+            value = String.format(Locale.US, "%.0f", snapFps);
+        }
         if (!value.equals(strFps)) {
             strFps = value;
             wDynFps = pVal.measureText(strFps);
