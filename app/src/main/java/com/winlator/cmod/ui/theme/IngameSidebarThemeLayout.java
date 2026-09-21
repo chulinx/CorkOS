@@ -81,6 +81,7 @@ public class IngameSidebarThemeLayout extends FrameLayout {
         forceKnownLegacyIconTints();
         fitMetricText();
         alignSeekBars(this);
+        alignSidebarSpinners(this);
 
         post(() -> {
             hideLegacyRailAndSetContentGutter();
@@ -88,6 +89,7 @@ public class IngameSidebarThemeLayout extends FrameLayout {
             normalizeLegacyTree(this);
             forceKnownLegacyIconTints();
             alignSeekBars(this);
+            alignSidebarSpinners(this);
         });
         postDelayed(() -> {
             localizeSidebarText(this);
@@ -95,6 +97,7 @@ public class IngameSidebarThemeLayout extends FrameLayout {
             forceKnownLegacyIconTints();
             wrapLegacySpinnerAdapters(this);
             alignSeekBars(this);
+            alignSidebarSpinners(this);
         }, 500);
     }
 
@@ -420,6 +423,29 @@ public class IngameSidebarThemeLayout extends FrameLayout {
         if (view instanceof ViewGroup) {
             ViewGroup group = (ViewGroup) view;
             for (int i = 0; i < group.getChildCount(); i++) alignSeekBars(group.getChildAt(i));
+        }
+    }
+
+    /**
+     * Give every sidebar spinner the same look.
+     *
+     * sidebar_spinner.xml is a layer-list whose arrow sits at right=10dp and whose shape declares a
+     * 34dp right padding. A layer-list shape's padding is NOT propagated to the view's content
+     * inset, so the selected text ran underneath the arrow. Setting the padding on the view is what
+     * actually keeps them apart. Spinners created in code (the frame-generation multiplier) never
+     * got the background at all, which is why they looked different from the XML ones.
+     */
+    private void alignSidebarSpinners(View view) {
+        if (view instanceof Spinner) {
+            Spinner spinner = (Spinner) view;
+            spinner.setBackgroundResource(R.drawable.sidebar_spinner);
+            spinner.setPadding(dp(10), spinner.getPaddingTop(), dp(34), spinner.getPaddingBottom());
+            spinner.setMinimumHeight(dp(42));
+            return;
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) alignSidebarSpinners(group.getChildAt(i));
         }
     }
 
