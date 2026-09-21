@@ -1413,7 +1413,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
         toggleOnClick(R.id.BTItemFPS, R.id.LLSubFPS);
         toggleOnClick(R.id.BTItemGraphics, R.id.LLSubGraphics);
         toggleOnClick(R.id.BTItemScreen, R.id.LLSubScreen);
-        openSidebarPanel(R.id.BTItemFPS, R.id.LLSubFPS);
+        // Open on the picture settings; they are what most people come here to change.
+        openSidebarPanel(R.id.BTItemGraphics, R.id.LLSubGraphics);
 
         ViewGroup btItemPause = (ViewGroup) findViewById(R.id.BTItemPause);
         if (btItemPause != null) {
@@ -1568,7 +1569,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         }
     }
 
-    private int activeSidebarItemId = R.id.BTItemFPS;
+    private int activeSidebarItemId = R.id.BTItemGraphics;
     private int activeSidebarPanelId = R.id.LLSubFPS;
 
     private final int[] sidebarPanelIds = {

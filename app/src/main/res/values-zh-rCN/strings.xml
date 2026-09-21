@@ -104,7 +104,7 @@
     <string name="loading">加载中…</string>
     <string name="press_any_button_on_your_controller">请按下控制器上的任意按键</string>
     <string name="bindings">个绑定</string>
-    <string name="show_touchscreen_controls">显示触屏控件</string>
+    <string name="show_touchscreen_controls">显示按键</string>
     <string name="dxwrapper">DX 包装器</string>
     <string name="mouse_warp_override">鼠标指针锁定覆盖</string>
     <string name="direct3d">Direct3D</string>
@@ -455,8 +455,8 @@
     <string name="pip_mode">画中画模式</string>
     <string name="configure">配置</string>
     <string name="enable_sendinput_mode">使用 Windows SendInput 模式</string>
-    <string name="enable_touchscreen_timeout">触屏控件超时隐藏（需重启）</string>
-    <string name="enable_touchscreen_haptics">启用触屏振动反馈</string>
+    <string name="enable_touchscreen_timeout">按键自动隐藏</string>
+    <string name="enable_touchscreen_haptics">按键振动</string>
     <string name="help_steamgrid">SteamGrid API 密钥</string>
     <string name="disable_xinput_for_shortcut">禁用 Xinput（用于独占鼠标键盘控制）</string>
     <string name="fullscreen_stretched">启用全屏（拉伸）</string>
@@ -965,13 +965,13 @@
     <string name="sidebar_toggle_fullscreen">切换全屏</string>
     <string name="sidebar_magnifier">放大镜</string>
     <string name="sidebar_soft_stretch">柔性拉伸</string>
-    <string name="sidebar_controls">控制</string>
-    <string name="sidebar_touch_opacity">触控按键透明度</string>
+    <string name="sidebar_controls">操作</string>
+    <string name="sidebar_touch_opacity">按键透明度</string>
     <string name="sidebar_show_keyboard">显示键盘</string>
     <string name="sidebar_vibration">振动</string>
     <string name="sidebar_relative_mouse">相对鼠标</string>
     <string name="sidebar_disable_mouse">禁用鼠标</string>
-    <string name="sidebar_hud">HUD</string>
+    <string name="sidebar_hud">性能展示</string>
     <string name="sidebar_enable_hud">启用 HUD</string>
     <string name="sidebar_style">样式</string>
     <string name="sidebar_hud_metrics">HUD 指标</string>
@@ -1016,4 +1016,9 @@
     <string name="rail_taskmanager">任务</string>
     <string name="rail_pause">暂停</string>
     <string name="rail_exit">退出</string>
+
+    <!-- Controls panel group headings -->
+    <string name="sidebar_touch_section">触控按键</string>
+    <string name="sidebar_mouse_section">鼠标</string>
+    <string name="sidebar_more_section">其他</string>
 </resources>

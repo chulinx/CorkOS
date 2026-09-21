@@ -104,7 +104,7 @@
     <string name="loading">Loading…</string>
     <string name="press_any_button_on_your_controller">Press any button on your controller</string>
     <string name="bindings">bindings</string>
-    <string name="show_touchscreen_controls">Show Touchscreen Controls</string>
+    <string name="show_touchscreen_controls">Show buttons</string>
     <string name="dxwrapper">DX Wrapper</string>
     <string name="mouse_warp_override">Mouse Warp Override</string>
     <string name="direct3d">Direct3D</string>
@@ -457,8 +457,8 @@
     <string name="pip_mode">PiP Mode</string>
     <string name="configure">Configure</string>
     <string name="enable_sendinput_mode">Use Windows SendInput Mode</string>
-    <string name="enable_touchscreen_timeout">Touchscreen Timeout (Requires Restart)</string>
-    <string name="enable_touchscreen_haptics">Enable Touchscreen Haptic Feedback</string>
+    <string name="enable_touchscreen_timeout">Auto-hide buttons</string>
+    <string name="enable_touchscreen_haptics">Button vibration</string>
     <string name="help_steamgrid">SteamGrid API Key</string>
     <string name="disable_xinput_for_shortcut">Disable Xinput (For Exclusive M/KB Control)</string>
     <string name="fullscreen_stretched">Enable Fullscreen (Stretched)</string>
@@ -972,12 +972,12 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="sidebar_magnifier">Magnifier</string>
     <string name="sidebar_soft_stretch">Soft Stretch</string>
     <string name="sidebar_controls">Controls</string>
-    <string name="sidebar_touch_opacity">Touch Controls Opacity</string>
+    <string name="sidebar_touch_opacity">Button opacity</string>
     <string name="sidebar_show_keyboard">Show Keyboard</string>
     <string name="sidebar_vibration">Vibration</string>
     <string name="sidebar_relative_mouse">Relative Mouse</string>
     <string name="sidebar_disable_mouse">Disable Mouse</string>
-    <string name="sidebar_hud">HUD</string>
+    <string name="sidebar_hud">Performance</string>
     <string name="sidebar_enable_hud">Enable HUD</string>
     <string name="sidebar_style">Style</string>
     <string name="sidebar_hud_metrics">HUD Metrics</string>
@@ -1022,4 +1022,9 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="rail_taskmanager">Tasks</string>
     <string name="rail_pause">Pause</string>
     <string name="rail_exit">Exit</string>
+
+    <!-- Controls panel group headings -->
+    <string name="sidebar_touch_section">Touch controls</string>
+    <string name="sidebar_mouse_section">Mouse</string>
+    <string name="sidebar_more_section">More</string>
 </resources>

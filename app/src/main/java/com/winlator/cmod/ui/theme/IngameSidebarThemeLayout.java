@@ -201,6 +201,9 @@ public class IngameSidebarThemeLayout extends FrameLayout {
             case "GENERAL": return R.string.sidebar_general_section;
             case "APPEARANCE": return R.string.sidebar_appearance_section;
             case "ACTIONS": return R.string.sidebar_actions_section;
+            case "TOUCH CONTROLS": return R.string.sidebar_touch_section;
+            case "MOUSE": return R.string.sidebar_mouse_section;
+            case "MORE": return R.string.sidebar_more_section;
             default: return 0;
         }
     }
@@ -238,6 +241,30 @@ public class IngameSidebarThemeLayout extends FrameLayout {
     }
 
     private void applyCompactPremiumLayout() {
+        // Controls was one undifferentiated list of nine rows. Group it the same way the picture
+        // section is grouped: nothing is removed, the rows just get headings and hairlines so the
+        // panel is scannable.
+        View inputControls = findViewById(R.id.LLSidebarInputControls);
+        insertSectionLabelBefore(inputControls, "TOUCH CONTROLS");
+        flattenSection(inputControls);
+        applyGaishiRows(inputControls);
+
+        View relativeMouse = findViewById(R.id.SWRelativeMouse);
+        insertSectionLabelBefore(relativeMouse, "MOUSE");
+        View disableMouse = findViewById(R.id.SWDisableMouse);
+        if (relativeMouse != null && disableMouse != null
+                && relativeMouse.getParent() == disableMouse.getParent()) {
+            applyGaishiRows((View) relativeMouse.getParent());
+        }
+
+        View subKeyboard = findViewById(R.id.BTSubKeyboard);
+        insertSectionLabelBefore(subKeyboard, "MORE");
+        View subVibration = findViewById(R.id.BTSubVibration);
+        if (subKeyboard != null && subVibration != null
+                && subKeyboard.getParent() == subVibration.getParent()) {
+            applyGaishiRows((View) subKeyboard.getParent());
+        }
+
         FpsLimiterControl fps = findFirstFpsLimiter(this);
         insertSectionLabelBefore(fps, "PERFORMANCE");
 
@@ -356,6 +383,9 @@ public class IngameSidebarThemeLayout extends FrameLayout {
             tightenRow(child);
             View prev = group.getChildAt(i - 1);
             if (prev != null && "winz-divider".equals(prev.getTag())) continue;
+            // No hairline straight after a section heading; the heading already separates.
+            if (prev != null && prev.getTag() instanceof String
+                    && ((String) prev.getTag()).startsWith("winz-section-")) continue;
             View line = new View(getContext());
             line.setTag("winz-divider");
             line.setBackgroundColor(DIVIDER);
