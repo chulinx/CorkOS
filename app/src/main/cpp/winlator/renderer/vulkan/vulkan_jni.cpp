@@ -370,3 +370,27 @@ Java_com_winlator_cmod_widget_VulkanXServerView_nativeReattachSurface(
     return (jboolean)ok;
 }
 
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_widget_VulkanXServerView_nativeSetFrameGenEnabled(
+    JNIEnv*, jobject, jlong handle, jboolean enabled)
+{
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->setFrameGenEnabled(enabled == JNI_TRUE);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_widget_VulkanXServerView_nativeSetFrameGenConfig(
+    JNIEnv*, jobject, jlong handle, jint flowMinSide, jint targetFps, jfloat refreshRate)
+{
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->setFrameGenConfig((uint32_t)flowMinSide, (uint32_t)targetFps, refreshRate);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_widget_VulkanXServerView_nativeSetFrameGenDebugFlow(
+    JNIEnv*, jobject, jlong handle, jboolean on)
+{
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->setFrameGenDebugFlow(on == JNI_TRUE);
+}

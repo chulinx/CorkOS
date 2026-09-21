@@ -132,6 +132,11 @@ public class VulkanXServerView extends XServerRendererView implements SurfaceHol
     private native void nativeSetFilterMode(long handle, int mode);
     private native void nativeSetStretchMode(long handle, int mode);
     private native void nativeSetPostFXMode(long handle, int mode);
+
+    // Frame generation (DIS optical flow)
+    private native void nativeSetFrameGenEnabled(long handle, boolean enabled);
+    private native void nativeSetFrameGenConfig(long handle, int flowMinSide, int targetFps, float refreshRate);
+    private native void nativeSetFrameGenDebugFlow(long handle, boolean on);
     private native void nativeSetSwapRB(long handle, boolean enabled);
     private native void nativeSetPresentMode(long handle, int mode);
     private native int[] nativeGetSupportedPresentModes(long handle);
@@ -628,6 +633,19 @@ public class VulkanXServerView extends XServerRendererView implements SurfaceHol
     public void setPostFXMode(int mode) {
         pendingPostFXMode = mode;
         synchronized (lock) { if (nativeHandle != 0) nativeSetPostFXMode(nativeHandle, mode); }
+    }
+
+    /** Enables DIS optical flow frame generation. flowMinSide is the shorter-side pixel budget. */
+    public void setFrameGenEnabled(boolean enabled, int flowMinSide, int targetFps, float refreshRate) {
+        synchronized (lock) {
+            if (nativeHandle == 0) return;
+            if (enabled) nativeSetFrameGenConfig(nativeHandle, flowMinSide, targetFps, refreshRate);
+            nativeSetFrameGenEnabled(nativeHandle, enabled);
+        }
+    }
+
+    public void setFrameGenDebugFlow(boolean on) {
+        synchronized (lock) { if (nativeHandle != 0) nativeSetFrameGenDebugFlow(nativeHandle, on); }
     }
 
     public void setSharpness(float s) {

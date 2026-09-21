@@ -1711,6 +1711,26 @@ void VulkanRendererContext::destroyFrameGenTargets() {
 bool VulkanRendererContext::ensureFrameGen(uint32_t width, uint32_t height) {
     if (device == VK_NULL_HANDLE || physicalDevice == VK_NULL_HANDLE) return false;
     if (width == 0 || height == 0) return false;
+    // Make sure the DIS instance exists however frame generation got enabled.
+    if (dis == nullptr) {
+        dis = vkr_dis_create(device, physicalDevice);
+        if (!dis) return false;
+        vkr_dis_configure(dis, frameGenFlowMinSide, frameGenTargetFps, frameGenRefreshRate);
+        vkr_dis_set_debug_flow(dis, frameGenDebugFlow);
+    }
+    if (disCmd == VK_NULL_HANDLE && cmdPool != VK_NULL_HANDLE) {
+        VkCommandBufferAllocateInfo ai{};
+        ai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        ai.commandPool = cmdPool;
+        ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        ai.commandBufferCount = 1;
+        if (vk_.AllocateCommandBuffers(device, &ai, &disCmd) != VK_SUCCESS) disCmd = VK_NULL_HANDLE;
+    }
+    if (disSem == VK_NULL_HANDLE) {
+        VkSemaphoreCreateInfo sci{};
+        sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+        if (vk_.CreateSemaphore(device, &sci, nullptr, &disSem) != VK_SUCCESS) disSem = VK_NULL_HANDLE;
+    }
     if (composeImage != VK_NULL_HANDLE && composeExt.width == width && composeExt.height == height)
         return true;
 

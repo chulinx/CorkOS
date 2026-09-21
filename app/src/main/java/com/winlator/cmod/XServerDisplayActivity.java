@@ -1861,8 +1861,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
         View    llFrameGenOptions  = findViewById(R.id.LLFrameGenOptions);
         Spinner spFrameGenFPS      = findViewById(R.id.SPFrameGenFPS);
 
-        if (llFrameGenOptions != null) llFrameGenOptions.setVisibility(View.GONE);
-        if (spFrameGenFPS  != null) spFrameGenFPS.setVisibility(View.GONE);
+        // Frame generation (DIS) is only wired into the Vulkan compositor for now.
+        if (llFrameGenOptions != null) llFrameGenOptions.setVisibility(vkRenderer != null ? View.VISIBLE : View.GONE);
+        if (spFrameGenFPS  != null) spFrameGenFPS.setVisibility(vkRenderer != null ? View.VISIBLE : View.GONE);
         if (spColorMode    != null) spColorMode.setVisibility(View.GONE);
         if (llStandardOptions != null) llStandardOptions.setVisibility(isVulkanRenderer ? View.VISIBLE : View.GONE);
         if (btSaveGraphicsPreset != null) btSaveGraphicsPreset.setVisibility(isVulkanRenderer ? View.VISIBLE : View.GONE);
@@ -2003,11 +2004,29 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (lblSharpnessHeader != null) lblSharpnessHeader.setVisibility(sharpVis);
         if (sbSharpness        != null) sbSharpness.setVisibility(sharpVis);
 
-        final String[] frameGenLabels = {"2x Interpolation", "Always On"};
+        // Off / Fast(180) / Balance(252) / Quality(360): the shorter-side pixel budget DIS uses for
+        // its optical flow pyramid. A fixed pixel budget costs the same on a 720p and a 1440p
+        // container, so lower is cheaper and higher tracks small or fast-moving detail better.
+        final String[] frameGenLabels = {"Off", "Fast", "Balance", "Quality"};
+        final int[] frameGenMinSide   = {0, 180, 252, 360};
         if (spFrameGenFPS != null) {
             ArrayAdapter<String> a = createSidebarSpinnerAdapter(frameGenLabels);
             a.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
             spFrameGenFPS.setAdapter(a);
+            spFrameGenFPS.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
+                    if (vkRenderer == null) return;
+                    float refresh = 60f;
+                    android.view.Display display = getWindowManager().getDefaultDisplay();
+                    if (display != null) {
+                        float r = display.getRefreshRate();
+                        if (r > 1f) refresh = r;
+                    }
+                    boolean enabled = pos > 0;
+                    vkRenderer.setFrameGenEnabled(enabled, frameGenMinSide[pos], 0, refresh);
+                }
+                @Override public void onNothingSelected(AdapterView<?> p) {}
+            });
         }
 
     }
