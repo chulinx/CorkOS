@@ -1666,6 +1666,11 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 view.setTextColor(Color.parseColor("#EEF7FF"));
                 view.setTextSize(14);
                 view.setSingleLine(true);
+                // Leave room for the dropdown arrow drawn by sidebar_spinner; without it the text
+                // runs over the arrow. Applied here as well because the view is recycled.
+                int pad = (int) (10 * getResources().getDisplayMetrics().density);
+                int arrow = (int) (34 * getResources().getDisplayMetrics().density);
+                view.setPadding(pad, view.getPaddingTop(), arrow, view.getPaddingBottom());
                 return view;
             }
 

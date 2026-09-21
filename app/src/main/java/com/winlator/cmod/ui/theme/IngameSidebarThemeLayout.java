@@ -441,6 +441,13 @@ public class IngameSidebarThemeLayout extends FrameLayout {
             spinner.setBackgroundResource(R.drawable.sidebar_spinner);
             spinner.setPadding(dp(10), spinner.getPaddingTop(), dp(34), spinner.getPaddingBottom());
             spinner.setMinimumHeight(dp(42));
+            // Spinner.setPadding() is a no-op once its popup has been created, and the selected item
+            // is what actually carries the text, so pad the child as well. Without this the text
+            // runs right up to the arrow and covers it.
+            for (int i = 0; i < spinner.getChildCount(); i++) {
+                View child = spinner.getChildAt(i);
+                child.setPadding(dp(10), child.getPaddingTop(), dp(34), child.getPaddingBottom());
+            }
             return;
         }
         if (view instanceof ViewGroup) {
