@@ -11,6 +11,7 @@ import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 import androidx.core.widget.ImageViewCompat;
@@ -101,6 +102,10 @@ public class SidebarNavItemView extends LinearLayout {
             if (getChildAt(i) instanceof ImageView) {
                 ImageViewCompat.setImageTintList((ImageView) getChildAt(i),
                         ColorStateList.valueOf(tint));
+            } else if (getChildAt(i) instanceof TextView) {
+                // Rail items now carry a text label under the icon; it has to follow the same
+                // selected/unselected emphasis as the icon.
+                ((TextView) getChildAt(i)).setTextColor(tint);
             }
         }
     }

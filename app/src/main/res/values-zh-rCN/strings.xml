@@ -1007,4 +1007,13 @@
     <string name="sidebar_battery_temp">电池温度</string>
     <string name="sidebar_charge_state">充电状态</string>
     <string name="sidebar_process_count">进程</string>
+
+    <!-- In-game sidebar rail labels -->
+    <string name="rail_graphics">画面</string>
+    <string name="rail_screen">显示</string>
+    <string name="rail_input">操作</string>
+    <string name="rail_fps">性能</string>
+    <string name="rail_taskmanager">任务</string>
+    <string name="rail_pause">暂停</string>
+    <string name="rail_exit">退出</string>
 </resources>

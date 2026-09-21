@@ -2,7 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/IngameSidebarRail"
-    android:layout_width="58dp"
+    android:layout_width="68dp"
     android:layout_height="match_parent"
     android:layout_gravity="end"
     android:layout_marginEnd="6dp"
@@ -22,69 +22,109 @@
 
     <com.winlator.cmod.ui.SidebarNavItemView
         android:id="@+id/BTItemGraphics"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        android:layout_width="52dp"
+        android:layout_height="48dp"
+        android:orientation="vertical"
         android:gravity="center"
         android:clickable="true"
         android:focusable="true"
         android:background="@drawable/sidebar_nav_icon_bg">
         <ImageView
             android:layout_width="25dp"
-            android:layout_height="25dp"
+            android:layout_height="23dp"
             android:duplicateParentState="true"
             android:src="@drawable/ic_sidebar_gpu"
             app:tint="@color/ingame_sidebar_icon_tint" />
+    
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:duplicateParentState="true"
+            android:maxLines="1"
+            android:text="@string/rail_graphics"
+            android:textSize="10sp" />
     </com.winlator.cmod.ui.SidebarNavItemView>
 
     <com.winlator.cmod.ui.SidebarNavItemView
         android:id="@+id/BTItemScreen"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        android:layout_width="52dp"
+        android:layout_height="48dp"
         android:layout_marginTop="6dp"
+        android:orientation="vertical"
         android:gravity="center"
         android:clickable="true"
         android:focusable="true"
         android:background="@drawable/sidebar_nav_icon_bg">
         <ImageView
             android:layout_width="25dp"
-            android:layout_height="25dp"
+            android:layout_height="23dp"
             android:duplicateParentState="true"
             android:src="@drawable/ic_sidebar_effects"
             app:tint="@color/ingame_sidebar_icon_tint" />
+    
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:duplicateParentState="true"
+            android:maxLines="1"
+            android:text="@string/rail_screen"
+            android:textSize="10sp" />
     </com.winlator.cmod.ui.SidebarNavItemView>
 
     <com.winlator.cmod.ui.SidebarNavItemView
         android:id="@+id/BTItemInput"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        android:layout_width="52dp"
+        android:layout_height="48dp"
         android:layout_marginTop="6dp"
+        android:orientation="vertical"
         android:gravity="center"
         android:clickable="true"
         android:focusable="true"
         android:background="@drawable/sidebar_nav_icon_bg">
         <ImageView
             android:layout_width="26dp"
-            android:layout_height="26dp"
+            android:layout_height="23dp"
             android:duplicateParentState="true"
             android:src="@drawable/icon_mouse"
             app:tint="@color/ingame_sidebar_icon_tint" />
+    
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:duplicateParentState="true"
+            android:maxLines="1"
+            android:text="@string/rail_input"
+            android:textSize="10sp" />
     </com.winlator.cmod.ui.SidebarNavItemView>
 
     <com.winlator.cmod.ui.SidebarNavItemView
         android:id="@+id/BTItemFPS"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        android:layout_width="52dp"
+        android:layout_height="48dp"
         android:layout_marginTop="6dp"
+        android:orientation="vertical"
         android:gravity="center"
         android:clickable="true"
         android:focusable="true"
         android:background="@drawable/sidebar_nav_icon_bg">
         <ImageView
             android:layout_width="25dp"
-            android:layout_height="25dp"
+            android:layout_height="23dp"
             android:duplicateParentState="true"
             android:src="@drawable/ic_sidebar_performance"
             app:tint="@color/ingame_sidebar_icon_tint" />
+    
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:duplicateParentState="true"
+            android:maxLines="1"
+            android:text="@string/rail_fps"
+            android:textSize="10sp" />
     </com.winlator.cmod.ui.SidebarNavItemView>
 
     <View
@@ -94,57 +134,86 @@
 
     <LinearLayout
         android:id="@+id/BottomActionGroup"
-        android:layout_width="40dp"
+        android:layout_width="52dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
             android:orientation="vertical"
             android:gravity="center_horizontal">
         <com.winlator.cmod.ui.SidebarNavItemView
             android:id="@+id/BTItemTaskManager"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:gravity="center"
+            android:layout_width="52dp"
+            android:layout_height="48dp"
+            android:orientation="vertical"
+        android:gravity="center"
             android:clickable="true"
             android:focusable="true"
             android:background="@drawable/sidebar_nav_icon_bg">
             <ImageView
                 android:layout_width="25dp"
-                android:layout_height="25dp"
+                android:layout_height="23dp"
                 android:duplicateParentState="true"
                 android:src="@drawable/ic_sidebar_task_manager"
                 app:tint="@color/ingame_sidebar_icon_tint" />
-        </com.winlator.cmod.ui.SidebarNavItemView>
+        
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:duplicateParentState="true"
+            android:maxLines="1"
+            android:text="@string/rail_taskmanager"
+            android:textSize="10sp" />
+    </com.winlator.cmod.ui.SidebarNavItemView>
 
         <com.winlator.cmod.ui.SidebarNavItemView
             android:id="@+id/BTItemPause"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:gravity="center"
+            android:layout_width="52dp"
+            android:layout_height="48dp"
+            android:orientation="vertical"
+        android:gravity="center"
             android:clickable="true"
             android:focusable="true"
             android:background="@drawable/sidebar_nav_icon_bg">
             <ImageView
                 android:layout_width="25dp"
-                android:layout_height="25dp"
+                android:layout_height="23dp"
                 android:duplicateParentState="true"
                 android:src="@drawable/icon_pause"
                 app:tint="@color/ingame_sidebar_icon_tint" />
-        </com.winlator.cmod.ui.SidebarNavItemView>
+        
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:duplicateParentState="true"
+            android:maxLines="1"
+            android:text="@string/rail_pause"
+            android:textSize="10sp" />
+    </com.winlator.cmod.ui.SidebarNavItemView>
 
         <LinearLayout
             android:id="@+id/BTItemExit"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="52dp"
+            android:layout_height="48dp"
             android:layout_marginTop="6dp"
+            android:orientation="vertical"
             android:gravity="center"
             android:clickable="true"
             android:focusable="true"
             android:background="@drawable/sidebar_exit">
             <ImageView
-                android:layout_width="25dp"
-                android:layout_height="25dp"
+                android:layout_width="23dp"
+                android:layout_height="23dp"
                 android:src="@drawable/ic_sidebar_power"
                 app:tint="@color/ingame_sidebar_power" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:maxLines="1"
+                android:text="@string/rail_exit"
+                android:textSize="10sp"
+                android:textColor="@color/ingame_sidebar_power" />
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>

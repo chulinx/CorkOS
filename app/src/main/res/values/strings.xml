@@ -1013,4 +1013,13 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="sidebar_battery_temp">Battery Temp</string>
     <string name="sidebar_charge_state">Charge State</string>
     <string name="sidebar_process_count">Processes</string>
+
+    <!-- In-game sidebar rail labels -->
+    <string name="rail_graphics">Picture</string>
+    <string name="rail_screen">Display</string>
+    <string name="rail_input">Controls</string>
+    <string name="rail_fps">Performance</string>
+    <string name="rail_taskmanager">Tasks</string>
+    <string name="rail_pause">Pause</string>
+    <string name="rail_exit">Exit</string>
 </resources>
