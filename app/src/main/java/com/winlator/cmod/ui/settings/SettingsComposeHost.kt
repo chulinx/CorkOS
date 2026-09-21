@@ -77,6 +77,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.winlator.cmod.MainActivity
 import com.winlator.cmod.R
+import com.winlator.cmod.ui.components.AmbientBackdrop
+import com.winlator.cmod.ui.components.glassBorder
+import com.winlator.cmod.ui.components.glassColor
 import com.winlator.cmod.ui.LandscapeMainNavigation
 import com.winlator.cmod.ui.components.SectionHeader
 import com.winlator.cmod.ui.theme.WinZTheme
@@ -174,7 +177,9 @@ private fun SettingsScreen(model: SettingsModel, callbacks: SettingsCallbacks) {
         }
     }
 
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    Box(Modifier.fillMaxSize()) {
+        AmbientBackdrop()
+        Column(Modifier.fillMaxSize()) {
         if (landscape) LandscapeMainNavigation(activity, R.id.main_menu_settings, stringResource(R.string.settings))
         LazyColumn(
             modifier = Modifier.fillMaxWidth().weight(1f),
@@ -299,6 +304,7 @@ private fun SettingsScreen(model: SettingsModel, callbacks: SettingsCallbacks) {
             item("about") {
                 NavigationRow(Icons.Outlined.Info, stringResource(R.string.about), null) { activity?.showAboutDialog() }
             }
+            }
         }
     }
 }
@@ -313,7 +319,8 @@ private fun GroupCard(content: @Composable () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface
+        color = glassColor(),
+        border = glassBorder()
     ) { Column { content() } }
 }
 
@@ -328,7 +335,8 @@ private fun NavigationRow(icon: ImageVector, title: String, subtitle: String?, o
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface
+        color = glassColor(),
+        border = glassBorder()
     ) {
         Row(
             Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 16.dp, vertical = 12.dp),

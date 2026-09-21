@@ -32,7 +32,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -79,21 +82,71 @@ fun SectionHeader(
     }
 }
 
+/**
+ * Liquid-glass panel.
+ *
+ * A real backdrop blur needs API 31+ and a window-level RenderEffect, so the look is faked with a
+ * translucent surface plus a hairline edge light. The alpha is picked per theme rather than fixed:
+ * light themes need more opacity before dark text starts to lose contrast, dark themes can go
+ * further because the text is bright. Nothing here costs GPU time beyond normal compositing.
+ */
+/**
+ * Soft vertical wash behind the content.
+ *
+ * Liquid glass only reads as glass when there is something behind it to show through; over a flat
+ * colour a translucent panel is indistinguishable from an opaque one. Kept low-contrast on purpose
+ * so it never competes with the text sitting on top.
+ */
+@Composable
+fun AmbientBackdrop(modifier: Modifier = Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    val lightTheme = scheme.background.luminance() > 0.5f
+    val top = if (lightTheme) Color(0xFFFFFFFF) else scheme.onSurface.copy(alpha = 0.06f)
+    val bottom = if (lightTheme) Color(0xFFE9EBF1) else Color(0xFF090A0F)
+    Box(
+        modifier
+            .fillMaxSize()
+            .background(Brush.verticalGradient(listOf(top, scheme.background, bottom)))
+    )
+}
+
+@Composable
+fun glassColor(): Color {
+    val scheme = MaterialTheme.colorScheme
+    val lightTheme = scheme.background.luminance() > 0.5f
+    return scheme.surface.copy(alpha = if (lightTheme) 0.76f else 0.60f)
+}
+
+@Composable
+fun glassBorder(): BorderStroke {
+    val scheme = MaterialTheme.colorScheme
+    val lightTheme = scheme.background.luminance() > 0.5f
+    return BorderStroke(0.5.dp, scheme.onSurface.copy(alpha = if (lightTheme) 0.10f else 0.16f))
+}
+
+@Composable
+fun GlassCard(
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(16.dp),
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = shape,
+        color = glassColor(),
+        border = glassBorder()
+    ) {
+        Column(Modifier.fillMaxWidth(), content = content)
+    }
+}
+
 @Composable
 fun SettingsGroupCard(
     modifier: Modifier = Modifier,
     horizontalPadding: Dp = 16.dp,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = horizontalPadding),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface
-    ) {
-        Column(Modifier.fillMaxWidth(), content = content)
-    }
+    GlassCard(modifier = modifier.padding(horizontal = horizontalPadding), content = content)
 }
 
 @Composable
