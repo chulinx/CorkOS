@@ -2055,24 +2055,38 @@ public class XServerDisplayActivity extends AppCompatActivity {
             root.addView(fgDebugOverlay, lp);
         }
         fgDebugHandler.removeCallbacksAndMessages(null);
+        final int[] tick = {0};
         fgDebugHandler.post(new Runnable() {
             @Override public void run() {
-                if (fgDebugOverlay != null && xServerView instanceof VulkanXServerView) {
+                if (xServerView instanceof VulkanXServerView) {
                     long[] c = ((VulkanXServerView) xServerView).getFrameGenCounts();
                     long now = System.nanoTime();
                     if (fgPrevCounts != null && fgPrevNanos > 0) {
-                        double dt = (now - fgPrevNanos) / 1e9;
-                        double real = (c[0] - fgPrevCounts[0]) / dt;
-                        double gen = (c[1] - fgPrevCounts[1]) / dt;
-                        double drop = (c[2] - fgPrevCounts[2]) / dt;
-                        fgDebugOverlay.setText(String.format(java.util.Locale.US,
-                                "FG  real %.1f/s   gen %.1f/s   dropped %.1f/s   total gen %d",
-                                real, gen, drop, c[1]));
+                        long dReal = c[0] - fgPrevCounts[0];
+                        long dGen = c[1] - fgPrevCounts[1];
+                        // Presented frames the source-frame counter never saw, so the HUD reports
+                        // what is actually on screen.
+                        if (dGen > 0) {
+                            if (modernHud != null) modernHud.addGeneratedFrames((int) dGen);
+                            if (classicHud != null) classicHud.addGeneratedFrames((int) dGen);
+                        }
+                        tick[0]++;
+                        if (fgDebugOverlay != null && tick[0] % 3 == 0) {
+                            double dt = (now - fgPrevNanos) / 1e9;
+                            double real = dReal / dt;
+                            double gen = dGen / dt;
+                            double drop = (c[2] - fgPrevCounts[2]) / dt;
+                            double shown = real + gen;
+                            double mult = real > 0.5 ? shown / real : 0.0;
+                            fgDebugOverlay.setText(String.format(java.util.Locale.US,
+                                    "FG  real %.1f  gen %.1f  shown %.1f (x%.1f)  dropped %.1f",
+                                    real, gen, shown, mult, drop));
+                        }
                     }
                     fgPrevCounts = c;
                     fgPrevNanos = now;
                 }
-                fgDebugHandler.postDelayed(this, 1000);
+                fgDebugHandler.postDelayed(this, 350);
             }
         });
     }

@@ -427,6 +427,16 @@ public class WinlatorHUD extends View {
         frameAccum.incrementAndGet();
     }
 
+    /**
+     * Frame generation presents interpolated frames that the source-frame counter never sees, so
+     * they have to be added here for the HUD to report what is actually on screen.
+     */
+    public void addGeneratedFrames(int n) {
+        if (n <= 0) return;
+        if (!rendererActive && !userEnabled) return;
+        frameAccum.addAndGet(n);
+    }
+
     public void update() {
         onFrame();
     }

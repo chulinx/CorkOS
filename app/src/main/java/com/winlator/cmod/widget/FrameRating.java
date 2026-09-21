@@ -149,6 +149,16 @@ public class FrameRating extends FrameLayout implements Runnable {
         frameCount++;
     }
 
+    /**
+     * Frame generation presents interpolated frames the source-frame counter never sees; add them
+     * here so the HUD reports what is actually on screen.
+     */
+    public void addGeneratedFrames(int n) {
+        if (n <= 0) return;
+        if (!userEnabled) return;
+        frameCount += n;
+    }
+
     @Override
     public void run() {
         if (!userEnabled) return;
