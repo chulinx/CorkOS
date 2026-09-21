@@ -172,11 +172,14 @@ void VulkanRendererContext::createInstance() {
 
     if (adrenotoolsHandle) {
         gipa = (PFN_vkGetInstanceProcAddr)dlsym(adrenotoolsHandle, "vkGetInstanceProcAddr");
+        if (gipa) vulkanHandle = adrenotoolsHandle;
     }
     if (!gipa) {
         void* loaderLib = dlopen("libvulkan.so", RTLD_NOW | RTLD_GLOBAL);
-        if (loaderLib)
+        if (loaderLib) {
             gipa = (PFN_vkGetInstanceProcAddr)dlsym(loaderLib, "vkGetInstanceProcAddr");
+            if (gipa) vulkanHandle = loaderLib;
+        }
     }
 
     vk_.CreateInstance = (PFN_vkCreateInstance)gipa(nullptr, "vkCreateInstance");
@@ -1711,6 +1714,14 @@ void VulkanRendererContext::destroyFrameGenTargets() {
 bool VulkanRendererContext::ensureFrameGen(uint32_t width, uint32_t height) {
     if (device == VK_NULL_HANDLE || physicalDevice == VK_NULL_HANDLE) return false;
     if (width == 0 || height == 0) return false;
+    // DIS resolves every Vulkan entry point through its own global dispatch table, so bind it to
+    // this context's libvulkan handle and instance first. Without this the very first
+    // vkr_dis_* call dereferences a NULL function pointer.
+    if (!vkdBound) {
+        if (vulkanHandle == nullptr || instance == VK_NULL_HANDLE) return false;
+        if (!vkd_bind(vulkanHandle, instance)) return false;
+        vkdBound = true;
+    }
     // Make sure the DIS instance exists however frame generation got enabled.
     if (dis == nullptr) {
         dis = vkr_dis_create(device, physicalDevice);
@@ -1918,6 +1929,13 @@ void VulkanRendererContext::setFrameGenEnabled(bool enabled) {
         disPrepared = false;
         destroyFrameGenTargets();
     } else if (dis == nullptr && device != VK_NULL_HANDLE) {
+        if (!vkdBound) {
+            if (vulkanHandle == nullptr || instance == VK_NULL_HANDLE || !vkd_bind(vulkanHandle, instance)) {
+                frameGenEnabled = false;
+                return;
+            }
+            vkdBound = true;
+        }
         dis = vkr_dis_create(device, physicalDevice);
         if (!dis) { frameGenEnabled = false; return; }
         vkr_dis_configure(dis, frameGenFlowMinSide, frameGenTargetFps, frameGenRefreshRate);

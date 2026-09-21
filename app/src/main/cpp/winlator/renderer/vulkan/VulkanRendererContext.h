@@ -368,6 +368,10 @@ public:
     VkSemaphore     fgPresentSems[FG_MAX_GENERATIONS + 1]{};
     uint64_t        sourceFrames = 0;
     bool            disPrepared  = false;
+    // DIS calls Vulkan through its own global dispatch table (vkd from vk_dispatch.h).  It has to
+    // be bound to this context's libvulkan handle + instance before any vkr_dis_* call, otherwise
+    // every entry point is NULL and we crash with pc=0.
+    bool            vkdBound     = false;
 
     void recordFrameGenCommands(uint32_t genCount, const uint32_t* genIndex, uint32_t realIndex);
 
