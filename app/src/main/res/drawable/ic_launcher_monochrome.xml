@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed-icon layer (Android 13+): a single-colour silhouette of the same cork. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M36,32 L72,32 L69,68 Q68,78 60,78 L48,78 Q40,78 39,68 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,26 m-18,0 a18,6 0 1,0 36,0 a18,6 0 1,0 -36,0 Z" />
+</vector>

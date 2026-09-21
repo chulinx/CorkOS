@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  CorkOS launcher foreground: a cork stopper.
+
+  The name is Cork + OS, and the app runs Wine under the hood, so the cork is the one shape that
+  says both. Drawn inside the 108x108 adaptive-icon canvas but kept within the middle ~66dp safe
+  zone, so no launcher mask clips it. Flat fills only: it has to read at 48dp.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Body: a tapered stopper with a rounded base. -->
+    <path
+        android:fillColor="#D9A05B"
+        android:pathData="M36,32 L72,32 L69,68 Q68,78 60,78 L48,78 Q40,78 39,68 Z" />
+
+    <!-- Left-edge highlight, so the shape does not read as a flat sticker. -->
+    <path
+        android:fillColor="#E8BC80"
+        android:pathData="M36,32 L42,32 L45,78 L48,78 Q40,78 39,68 Z" />
+
+    <!-- Grain lines. -->
+    <path
+        android:fillColor="#B87B3E"
+        android:pathData="M40.6,47 L67.4,47 L67.1,50 L40.9,50 Z" />
+    <path
+        android:fillColor="#B87B3E"
+        android:pathData="M40.1,59 L67.9,59 L67.6,62 L40.4,62 Z" />
+
+    <!-- Top face, slightly darker so the stopper has a readable top plane. -->
+    <path
+        android:fillColor="#C4884A"
+        android:pathData="M54,26 m-18,0 a18,6 0 1,0 36,0 a18,6 0 1,0 -36,0 Z" />
+    <path
+        android:fillColor="#D9A05B"
+        android:pathData="M54,26 m-15,0 a15,4.5 0 1,0 30,0 a15,4.5 0 1,0 -30,0 Z" />
+</vector>
