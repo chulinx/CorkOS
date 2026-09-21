@@ -41,7 +41,7 @@ public class NotificationService extends Service {
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, MainActivity.NOTIFICATION_CHANNEL_ID)
                 .setSmallIcon(R.drawable.winlator_mark)
-                .setContentTitle("Winlator")
+                .setContentTitle(getString(R.string.app_name))
                 .setContentText(getString(R.string.running_notification))
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setContentIntent(pendingIntent)

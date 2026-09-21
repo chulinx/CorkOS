@@ -898,7 +898,7 @@
     <string name="dual_cell_correction">双单元校正</string>
     <string name="wallpaper_preview">壁纸预览</string>
     <string name="wallpaper">壁纸</string>
-    <string name="running_notification">Winlator 正在运行，请勿结束或滑动清除此通知</string>
+    <string name="running_notification">corker 正在运行，请勿结束或滑动清除此通知</string>
     <string name="environment">环境</string>
     <string name="wallpaper_image">壁纸图片</string>
 
@@ -1021,4 +1021,9 @@
     <string name="sidebar_touch_section">触控按键</string>
     <string name="sidebar_mouse_section">鼠标</string>
     <string name="sidebar_more_section">其他</string>
+
+    <!-- Home-screen shortcut feedback -->
+    <string name="add_to_home_screen_unsupported">当前桌面不支持添加快捷方式，请到桌面手动添加</string>
+    <string name="add_to_home_screen_requested">已请求添加，请在弹窗中确认</string>
+    <string name="add_to_home_screen_failed">添加桌面快捷方式失败</string>
 </resources>

@@ -96,8 +96,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private String orientationMode = ORIENTATION_MODE_AUTO;
 
     private void createNotificationChannel() {
-        String name = "Winlator";
-        String description = "Winlator XServer Messages";
+        String name = getString(R.string.app_name);
+        String description = getString(R.string.app_name) + " XServer Messages";
         int importance = NotificationManager.IMPORTANCE_LOW;
         NotificationChannel channel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, name, importance);
         channel.setDescription(description);

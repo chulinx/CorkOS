@@ -700,14 +700,29 @@ public class ShortcutsFragment extends Fragment {
 
     private void addShortcutToScreen(Shortcut shortcut) {
         ShortcutManager shortcutManager = getSystemService(requireContext(), ShortcutManager.class);
-        if (shortcutManager != null && shortcutManager.isRequestPinShortcutSupported()) {
-            File iconDir = getImagesDir(false);
-            File imgFile = new File(iconDir, FileUtils.getBasename(shortcut.file.getPath()) + ".png");
-            Bitmap bmp = imgFile.exists() ? BitmapFactory.decodeFile(imgFile.getPath()) : shortcut.icon;
-            if (bmp == null) bmp = BitmapFactory.decodeResource(getResources(), R.drawable.icon_wine);
-            
-            shortcutManager.requestPinShortcut(buildScreenShortCut(shortcut.name, shortcut.name, shortcut.container.id,
-                    shortcut.file.getPath(), Icon.createWithBitmap(bmp), shortcut.getExtra("uuid")), null);
+        // Several launchers (MIUI's among them) do not implement pin requests. The old code just
+        // fell through in that case, so tapping "add to home screen" looked like it did nothing.
+        if (shortcutManager == null || !shortcutManager.isRequestPinShortcutSupported()) {
+            Toast.makeText(requireContext(), R.string.add_to_home_screen_unsupported,
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+        File iconDir = getImagesDir(false);
+        File imgFile = new File(iconDir, FileUtils.getBasename(shortcut.file.getPath()) + ".png");
+        Bitmap bmp = imgFile.exists() ? BitmapFactory.decodeFile(imgFile.getPath()) : shortcut.icon;
+        if (bmp == null) bmp = BitmapFactory.decodeResource(getResources(), R.drawable.icon_wine);
+
+        try {
+            shortcutManager.requestPinShortcut(buildScreenShortCut(shortcut.name, shortcut.name,
+                    shortcut.container.id, shortcut.file.getPath(), Icon.createWithBitmap(bmp),
+                    shortcut.getExtra("uuid")), null);
+            // The launcher shows its own confirm dialog, but some ROMs suppress it, so give the
+            // user something immediate either way.
+            Toast.makeText(requireContext(), R.string.add_to_home_screen_requested,
+                    Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(requireContext(), R.string.add_to_home_screen_failed,
+                    Toast.LENGTH_LONG).show();
         }
     }
 

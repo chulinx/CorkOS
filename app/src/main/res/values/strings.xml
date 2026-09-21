@@ -904,7 +904,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="dual_cell_correction">Dual-cell correction</string>
     <string name="wallpaper_preview">Wallpaper preview</string>
     <string name="wallpaper">Wallpaper</string>
-    <string name="running_notification">Winlator is running, do not kill or swipe this notification</string>
+    <string name="running_notification">corker is running, do not kill or swipe this notification</string>
     <string name="environment">Environment</string>
     <string name="wallpaper_image">Wallpaper image</string>
 
@@ -1027,4 +1027,9 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="sidebar_touch_section">Touch controls</string>
     <string name="sidebar_mouse_section">Mouse</string>
     <string name="sidebar_more_section">More</string>
+
+    <!-- Home-screen shortcut feedback -->
+    <string name="add_to_home_screen_unsupported">This launcher does not support home-screen shortcuts</string>
+    <string name="add_to_home_screen_requested">Requested — confirm in the dialog</string>
+    <string name="add_to_home_screen_failed">Could not add the home-screen shortcut</string>
 </resources>
