@@ -895,7 +895,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="view_details">View details</string>
     <string name="calculating_storage">Calculating storage…</string>
     <string name="clearing">Clearing…</string>
-    <string name="fps_limit">FPS Limit</string>
+    <string name="fps_limit">Limit FPS</string>
     <string name="custom">Custom</string>
     <string name="off">Off</string>
     <string name="scheme_color">Scheme Color</string>

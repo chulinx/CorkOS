@@ -889,7 +889,7 @@
     <string name="view_details">查看详情</string>
     <string name="calculating_storage">正在计算存储…</string>
     <string name="clearing">正在清除…</string>
-    <string name="fps_limit">帧率上限</string>
+    <string name="fps_limit">限制帧数</string>
     <string name="custom">自定义</string>
     <string name="off">关闭</string>
     <string name="scheme_color">配色方案</string>
