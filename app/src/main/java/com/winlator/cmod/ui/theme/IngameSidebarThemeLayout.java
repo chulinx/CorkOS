@@ -35,6 +35,8 @@ public class IngameSidebarThemeLayout extends FrameLayout {
     private int onSurfaceVariant;
     private int primary;
     private int primaryContainer;
+    /** Hairline between rows; ~10% white reads as a divider on both the panel and the rail. */
+    private static final int DIVIDER = 0x1AFFFFFF;
 
     public IngameSidebarThemeLayout(Context context) {
         super(context);
@@ -242,9 +244,11 @@ public class IngameSidebarThemeLayout extends FrameLayout {
         View imageQuality = findViewById(R.id.LLStandardOptions);
         insertSectionLabelBefore(imageQuality, "IMAGE QUALITY");
         flattenSection(imageQuality);
+        applyGaishiRows(imageQuality);
 
         View frameGen = findViewById(R.id.LLFrameGenOptions);
         flattenSection(frameGen);
+        applyGaishiRows(frameGen);
 
         View savePreset = findViewById(R.id.BTSaveGraphicsPreset);
         insertSectionLabelBefore(savePreset, "PRESETS");
@@ -260,6 +264,14 @@ public class IngameSidebarThemeLayout extends FrameLayout {
 
             flattenSection(enableHud);
             flattenSection(hudStyle);
+            applyGaishiRows(enableHud);
+            applyGaishiRows(hudStyle);
+
+            // The HUD metric checkboxes live in their own card; flatten it too so the whole
+            // section reads as one list rather than a card inside a list.
+            View modernHud = findViewById(R.id.LLModernHudOptions);
+            flattenSection(modernHud);
+            applyGaishiRows(modernHud);
 
             TextView resetText = findTextView(this, "Reset HUD");
             View resetRow = directChildUnder(hudParent, resetText);
@@ -324,6 +336,47 @@ public class IngameSidebarThemeLayout extends FrameLayout {
             LinearLayout layout = (LinearLayout) row;
             layout.setGravity(Gravity.CENTER_VERTICAL);
             layout.setPadding(dp(16), layout.getPaddingTop(), dp(16), layout.getPaddingBottom());
+        }
+    }
+
+    /**
+     * Gaishi-style rows: one hairline between consecutive settings rows, and a tighter row height.
+     *
+     * The sidebar used to group rows inside cards; those cards are removed by flattenSection(),
+     * so a hairline is what gives the list its rhythm. Dividers carry a tag so repeated passes
+     * (the layout patches itself again after layout and once more after 500ms) do not stack them.
+     */
+    private void applyGaishiRows(View section) {
+        if (!(section instanceof LinearLayout)) return;
+        LinearLayout group = (LinearLayout) section;
+
+        for (int i = group.getChildCount() - 1; i > 0; i--) {
+            View child = group.getChildAt(i);
+            if (!isContentRow(child)) continue;
+            tightenRow(child);
+            View prev = group.getChildAt(i - 1);
+            if (prev != null && "winz-divider".equals(prev.getTag())) continue;
+            View line = new View(getContext());
+            line.setTag("winz-divider");
+            line.setBackgroundColor(DIVIDER);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    Math.max(1, (int) (getResources().getDisplayMetrics().density * 0.5f)));
+            group.addView(line, i, lp);
+        }
+    }
+
+    private boolean isContentRow(View v) {
+        if (v == null || v.getVisibility() != View.VISIBLE) return false;
+        Object tag = v.getTag();
+        return !(tag instanceof String && ((String) tag).startsWith("winz-"));
+    }
+
+    private void tightenRow(View row) {
+        row.setMinimumHeight((int) dp(42));
+        if (row instanceof ViewGroup) {
+            ViewGroup g = (ViewGroup) row;
+            g.setPadding(g.getPaddingLeft(), (int) dp(2), g.getPaddingRight(), (int) dp(2));
         }
     }
 
