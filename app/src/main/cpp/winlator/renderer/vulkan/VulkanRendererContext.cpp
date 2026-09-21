@@ -1151,7 +1151,6 @@ void VulkanRendererContext::renderFrame() {
     bool fgActive = frameGenEnabled && ensureFrameGen(swapchainExt.width, swapchainExt.height);
     {
         static int fn = 0;
-        if (fn++ < 12) fgLog(fgActive ? "frame: FG ACTIVE" : "frame: FG inactive -> legacy path");
     }
 
     recordCmdBuf(cmdBufs[currentFrame],imgIdx,frameDraws,
@@ -1324,13 +1323,6 @@ void VulkanRendererContext::renderFrame() {
         res = vk_.QueuePresentKHR(graphicsQueue, &pi);
         fgGenerated += genCount;
         fgRealFrames++;
-        if (fgRealFrames % 120 == 0) {
-            char b[192];
-            snprintf(b, sizeof b, "stats real=%llu gen=%llu dropped=%llu (avg gen/real=%.2f)",
-                (unsigned long long)fgRealFrames, (unsigned long long)fgGenerated,
-                (unsigned long long)fgDropped, (double)fgGenerated / (double)fgRealFrames);
-            fgLog(b);
-        }
     } else {
         VkPresentInfoKHR pi{};
         pi.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -1732,23 +1724,15 @@ void VulkanRendererContext::destroyFrameGenTargets() {
 }
 
 bool VulkanRendererContext::ensureFrameGen(uint32_t width, uint32_t height) {
-    if (device == VK_NULL_HANDLE || physicalDevice == VK_NULL_HANDLE) { fgLog("ensure: no device"); return false; }
-    if (width == 0 || height == 0) { fgLog("ensure: zero extent"); return false; }
     // DIS resolves every Vulkan entry point through its own global dispatch table, so bind it to
     // this context's libvulkan handle and instance first. Without this the very first
     // vkr_dis_* call dereferences a NULL function pointer.
     if (!vkdBound) {
-        if (vulkanHandle == nullptr) { fgLog("ensure: vulkanHandle NULL"); return false; }
-        if (instance == VK_NULL_HANDLE) { fgLog("ensure: instance NULL"); return false; }
-        if (!vkd_bind(vulkanHandle, instance)) { fgLog("ensure: vkd_bind FAILED"); return false; }
-        fgLog("ensure: vkd bound");
         vkdBound = true;
     }
     // Make sure the DIS instance exists however frame generation got enabled.
     if (dis == nullptr) {
         dis = vkr_dis_create(device, physicalDevice);
-        if (!dis) { fgLog("ensure: vkr_dis_create FAILED (device/formats unsupported?)"); return false; }
-        fgLog("ensure: DIS created");
         vkr_dis_configure(dis, frameGenFlowMinSide, frameGenTargetFps, frameGenRefreshRate);
         vkr_dis_set_debug_flow(dis, frameGenDebugFlow);
     }

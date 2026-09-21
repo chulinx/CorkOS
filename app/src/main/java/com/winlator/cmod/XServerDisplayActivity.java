@@ -171,11 +171,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private int frameGenMultiplier = 2;
     private android.widget.Spinner fgMultSpinner = null;
 
-    // Frame generation debug overlay (rates are derived from the DIS counters).
-    private android.widget.TextView fgDebugOverlay = null;
-    private final android.os.Handler fgDebugHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final android.os.Handler fgHudHandler = new android.os.Handler(android.os.Looper.getMainLooper());
     private long[] fgPrevCounts = null;
-    private long fgPrevNanos = 0;
 
     private FrameRating classicHud = null;
     private WinlatorHUD modernHud = null;
@@ -2053,7 +2050,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 lp.topMargin = 8;
                 fgCard.addView(fgMultSpinner, lp);
             }
-            setupFrameGenDebugOverlay();
+            startFrameGenHudFeed();
         }
     }
 
@@ -2072,56 +2069,26 @@ public class XServerDisplayActivity extends AppCompatActivity {
         v.setFrameGenEnabled(enabled, FG_MIN_SIDE[frameGenQualityPos], 0, refresh);
     }
 
-    /** Small always-on-top readout so DIS accounting can be seen while playing. */
-    private void setupFrameGenDebugOverlay() {
-        if (fgDebugOverlay == null) {
-            fgDebugOverlay = new android.widget.TextView(this);
-            fgDebugOverlay.setTextColor(0xFFFFFFFF);
-            fgDebugOverlay.setBackgroundColor(0x99000000);
-            fgDebugOverlay.setTextSize(12f);
-            fgDebugOverlay.setPadding(12, 8, 12, 8);
-            android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(
-                    android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
-                    android.widget.FrameLayout.LayoutParams.WRAP_CONTENT);
-            lp.gravity = android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL;
-            lp.topMargin = 24;
-            android.widget.FrameLayout root = findViewById(R.id.FLXServerDisplay);
-            if (root == null) { fgDebugOverlay = null; return; }
-            root.addView(fgDebugOverlay, lp);
-        }
-        fgDebugHandler.removeCallbacksAndMessages(null);
-        final int[] tick = {0};
-        fgDebugHandler.post(new Runnable() {
+    /**
+     * Interpolated frames never go through the HUD's source-frame counter, so they are fed in here
+     * and the HUD can report "source  xN  result". Runs at the HUD's sampling cadence.
+     */
+    private void startFrameGenHudFeed() {
+        fgHudHandler.removeCallbacksAndMessages(null);
+        fgHudHandler.post(new Runnable() {
             @Override public void run() {
                 if (xServerView instanceof VulkanXServerView) {
                     long[] c = ((VulkanXServerView) xServerView).getFrameGenCounts();
-                    long now = System.nanoTime();
-                    if (fgPrevCounts != null && fgPrevNanos > 0) {
-                        long dReal = c[0] - fgPrevCounts[0];
+                    if (fgPrevCounts != null) {
                         long dGen = c[1] - fgPrevCounts[1];
-                        // Presented frames the source-frame counter never saw, so the HUD reports
-                        // what is actually on screen.
                         if (dGen > 0) {
                             if (modernHud != null) modernHud.addGeneratedFrames((int) dGen);
                             if (classicHud != null) classicHud.addGeneratedFrames((int) dGen);
                         }
-                        tick[0]++;
-                        if (fgDebugOverlay != null && tick[0] % 3 == 0) {
-                            double dt = (now - fgPrevNanos) / 1e9;
-                            double real = dReal / dt;
-                            double gen = dGen / dt;
-                            double drop = (c[2] - fgPrevCounts[2]) / dt;
-                            double shown = real + gen;
-                            double mult = real > 0.5 ? shown / real : 0.0;
-                            fgDebugOverlay.setText(String.format(java.util.Locale.US,
-                                    "FG  real %.1f  gen %.1f  shown %.1f (x%.1f)  dropped %.1f",
-                                    real, gen, shown, mult, drop));
-                        }
                     }
                     fgPrevCounts = c;
-                    fgPrevNanos = now;
                 }
-                fgDebugHandler.postDelayed(this, 350);
+                fgHudHandler.postDelayed(this, 350);
             }
         });
     }

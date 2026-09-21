@@ -385,16 +385,6 @@ public:
 
     void recordFrameGenCommands(uint32_t genCount, const uint32_t* genIndex, uint32_t realIndex);
 
-    // Temporary diagnostic: MIUI drops this app's logcat, so frame generation state is written to
-    // <filesDir>/fg_diag.log instead. Defined here because CMake generates a second translation
-    // unit (VulkanRendererContext_legacy.cpp) that also needs it.
-    static void fgLog(const char* msg) {
-        static int n = 0;
-        if (n++ > 60) return;
-        FILE* f = fopen("/data/data/com.winlator.cmod/files/fg_diag.log", "a");
-        if (f) { fprintf(f, "%s\n", msg); fclose(f); }
-    }
-
     void setFrameGenEnabled(bool enabled);
     void setFrameGenConfig(uint32_t flowMinSide, uint32_t targetFps, float refreshRate);
     void setFrameGenDebugFlow(bool on);
