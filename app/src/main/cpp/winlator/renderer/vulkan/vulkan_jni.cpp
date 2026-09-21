@@ -394,3 +394,19 @@ Java_com_winlator_cmod_widget_VulkanXServerView_nativeSetFrameGenDebugFlow(
     auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
     if (r) r->setFrameGenDebugFlow(on == JNI_TRUE);
 }
+
+extern "C" JNIEXPORT jlongArray JNICALL
+Java_com_winlator_cmod_widget_VulkanXServerView_nativeGetFrameGenCounts(
+    JNIEnv* env, jobject, jlong handle)
+{
+    jlong out[3] = {0, 0, 0};
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) {
+        out[0] = (jlong)r->fgRealFrames;
+        out[1] = (jlong)r->fgGenerated;
+        out[2] = (jlong)r->fgDropped;
+    }
+    jlongArray arr = env->NewLongArray(3);
+    if (arr) env->SetLongArrayRegion(arr, 0, 3, out);
+    return arr;
+}

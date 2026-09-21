@@ -165,6 +165,12 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private XServer xServer;
     private InputControlsManager inputControlsManager;
     private ImageFs imageFs;
+    // Frame generation debug overlay (rates are derived from the DIS counters).
+    private android.widget.TextView fgDebugOverlay = null;
+    private final android.os.Handler fgDebugHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private long[] fgPrevCounts = null;
+    private long fgPrevNanos = 0;
+
     private FrameRating classicHud = null;
     private WinlatorHUD modernHud = null;
     private Runnable editInputControlsCallback;
@@ -2027,8 +2033,48 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 }
                 @Override public void onNothingSelected(AdapterView<?> p) {}
             });
+            setupFrameGenDebugOverlay();
         }
+    }
 
+    /** Small always-on-top readout so DIS accounting can be seen while playing. */
+    private void setupFrameGenDebugOverlay() {
+        if (fgDebugOverlay == null) {
+            fgDebugOverlay = new android.widget.TextView(this);
+            fgDebugOverlay.setTextColor(0xFFFFFFFF);
+            fgDebugOverlay.setBackgroundColor(0x99000000);
+            fgDebugOverlay.setTextSize(12f);
+            fgDebugOverlay.setPadding(12, 8, 12, 8);
+            android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(
+                    android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                    android.widget.FrameLayout.LayoutParams.WRAP_CONTENT);
+            lp.gravity = android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL;
+            lp.topMargin = 24;
+            android.widget.FrameLayout root = findViewById(R.id.FLXServerDisplay);
+            if (root == null) { fgDebugOverlay = null; return; }
+            root.addView(fgDebugOverlay, lp);
+        }
+        fgDebugHandler.removeCallbacksAndMessages(null);
+        fgDebugHandler.post(new Runnable() {
+            @Override public void run() {
+                if (fgDebugOverlay != null && xServerView instanceof VulkanXServerView) {
+                    long[] c = ((VulkanXServerView) xServerView).getFrameGenCounts();
+                    long now = System.nanoTime();
+                    if (fgPrevCounts != null && fgPrevNanos > 0) {
+                        double dt = (now - fgPrevNanos) / 1e9;
+                        double real = (c[0] - fgPrevCounts[0]) / dt;
+                        double gen = (c[1] - fgPrevCounts[1]) / dt;
+                        double drop = (c[2] - fgPrevCounts[2]) / dt;
+                        fgDebugOverlay.setText(String.format(java.util.Locale.US,
+                                "FG  real %.1f/s   gen %.1f/s   dropped %.1f/s   total gen %d",
+                                real, gen, drop, c[1]));
+                    }
+                    fgPrevCounts = c;
+                    fgPrevNanos = now;
+                }
+                fgDebugHandler.postDelayed(this, 1000);
+            }
+        });
     }
 
         private void setupSidebarInputControls() {

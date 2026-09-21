@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <vulkan/vulkan_android.h>
 
+#include <cstdio>
 #include "view_transformation.hpp"
 #include "xform.hpp"
 // DIS frame generation (pure C API, extern "C" so it links straight into this C++ TU).
@@ -367,6 +368,12 @@ public:
     // One semaphore per presented image (generated frames + the real frame).
     VkSemaphore     fgPresentSems[FG_MAX_GENERATIONS + 1]{};
     uint64_t        sourceFrames = 0;
+    // Diagnostics: how many frames we actually presented through the FG path, how many DIS
+    // generations that produced, and how many were dropped because no swapchain image could be
+    // acquired in time.
+    uint64_t        fgRealFrames  = 0;
+    uint64_t        fgGenerated   = 0;
+    uint64_t        fgDropped     = 0;
     bool            disPrepared  = false;
     // DIS calls Vulkan through its own global dispatch table (vkd from vk_dispatch.h).  It has to
     // be bound to this context's libvulkan handle + instance before any vkr_dis_* call, otherwise
@@ -374,6 +381,16 @@ public:
     bool            vkdBound     = false;
 
     void recordFrameGenCommands(uint32_t genCount, const uint32_t* genIndex, uint32_t realIndex);
+
+    // Temporary diagnostic: MIUI drops this app's logcat, so frame generation state is written to
+    // <filesDir>/fg_diag.log instead. Defined here because CMake generates a second translation
+    // unit (VulkanRendererContext_legacy.cpp) that also needs it.
+    static void fgLog(const char* msg) {
+        static int n = 0;
+        if (n++ > 60) return;
+        FILE* f = fopen("/data/data/com.winlator.cmod/files/fg_diag.log", "a");
+        if (f) { fprintf(f, "%s\n", msg); fclose(f); }
+    }
 
     void setFrameGenEnabled(bool enabled);
     void setFrameGenConfig(uint32_t flowMinSide, uint32_t targetFps, float refreshRate);
