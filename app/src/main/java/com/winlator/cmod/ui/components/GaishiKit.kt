@@ -101,12 +101,16 @@ fun SectionHeader(
 fun AmbientBackdrop(modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme
     val lightTheme = scheme.background.luminance() > 0.5f
-    val top = if (lightTheme) Color(0xFFFFFFFF) else scheme.onSurface.copy(alpha = 0.06f)
-    val bottom = if (lightTheme) Color(0xFFE9EBF1) else Color(0xFF090A0F)
+    // The wash has to be strong enough that a translucent panel visibly differs from an opaque
+    // one. A 6% tint was invisible on the device; this range reads as glass without touching the
+    // contrast of the text sitting on the cards.
+    val top = if (lightTheme) Color(0xFFFFFFFF) else Color(0xFF1B1E2A)
+    val mid = if (lightTheme) Color(0xFFF1F3F8) else Color(0xFF0D0F16)
+    val bottom = if (lightTheme) Color(0xFFDDE1EA) else Color(0xFF05060A)
     Box(
         modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(top, scheme.background, bottom)))
+            .background(Brush.verticalGradient(listOf(top, mid, bottom)))
     )
 }
 
