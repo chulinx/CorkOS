@@ -2,10 +2,12 @@
 <!--
   Notification small icon.
 
-  Status-bar icons are forced to a single colour by the system, so this is a silhouette: the cork
-  from the launcher icon with a D-pad punched out of its face, which reads as "cork + gamepad".
-  The cross uses evenOdd so it is a real hole rather than a second colour. Kept inside the 22dp
-  safe area of the 24dp canvas; anything finer than this blurs at status-bar size.
+  Status-bar icons are forced to a single colour by the system, so this is a white silhouette.
+
+  The first attempt was a cork with a D-pad punched out of its face; at status-bar size the two
+  cut-outs left four blobs and it read as a 2x2 grid, not a cork. A gamepad outline is the one
+  shape that survives this size, and it is what the icon is meant to say anyway. The cork stays on
+  the launcher icon.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
@@ -15,11 +17,5 @@
 
     <path
         android:fillColor="#FFFFFF"
-        android:fillType="evenOdd"
-        android:pathData="M7.2,3 L16.8,3 L15.4,17.6 Q15.1,20.5 12.2,20.5 L11.8,20.5 Q8.9,20.5 8.6,17.6 Z M11.2,9.4 L12.8,9.4 L12.8,11.6 L15,11.6 L15,13.2 L12.8,13.2 L12.8,15.4 L11.2,15.4 L11.2,13.2 L9,13.2 L9,11.6 L11.2,11.6 Z" />
-
-    <!-- Cork top face, so the silhouette keeps the stopper's outline. -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M12,3 m-5.4,0 a5.4,1.9 0 1,0 10.8,0 a5.4,1.9 0 1,0 -10.8,0 Z" />
+        android:pathData="M21.58,16.09l-1.09,-7.66C20.21,6.46 18.52,5 16.5,5h-9C5.48,5 3.79,6.46 3.51,8.43l-1.09,7.66C2.2,17.63 3.39,19 4.94,19c0.82,0 1.6,-0.35 2.14,-0.96L9,16h6l1.92,2.04c0.54,0.61 1.32,0.96 2.14,0.96C20.61,19 21.8,17.63 21.58,16.09zM11,11H9v2H8v-2H6v-1h2V8h1v2h2V11zM15.5,10c-0.83,0 -1.5,-0.67 -1.5,-1.5S14.67,7 15.5,7S17,7.67 17,8.5S16.33,10 15.5,10zM19,12c-0.83,0 -1.5,-0.67 -1.5,-1.5S18.17,9 19,9s1.5,0.67 1.5,1.5S19.83,12 19,12z" />
 </vector>
