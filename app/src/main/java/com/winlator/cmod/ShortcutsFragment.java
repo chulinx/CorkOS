@@ -690,6 +690,9 @@ public class ShortcutsFragment extends Fragment {
         intent.setAction(Intent.ACTION_VIEW);
         intent.putExtra("container_id", containerId);
         intent.putExtra("shortcut_path", shortcutPath);
+        // Marks a game launched straight from an Android home-screen shortcut, so that on exit we
+        // can send the user back to the launcher instead of restarting into the app.
+        intent.putExtra("launched_from_shortcut", true);
         return new ShortcutInfo.Builder(getActivity(), uuid)
                 .setShortLabel(shortLabel)
                 .setLongLabel(longLabel)

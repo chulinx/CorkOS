@@ -232,6 +232,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private long startTime;
     private SharedPreferences playtimePrefs;
     private String shortcutName;
+    private boolean launchedFromShortcut = false;
     private Handler handler;
     private Runnable savePlaytimeRunnable;
     private static final long SAVE_INTERVAL_MS = 1000;
@@ -409,6 +410,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         String shortcutPath = getIntent().getStringExtra("shortcut_path");
         Log.d("XServerDisplayActivity", "Shortcut Path: " + shortcutPath);
+
+        launchedFromShortcut = getIntent().getBooleanExtra("launched_from_shortcut", false);
+        Log.d("XServerDisplayActivity", "Launched from home-screen shortcut: " + launchedFromShortcut);
 
         int containerId = getIntent().getIntExtra("container_id", 0);
         Log.d("XServerDisplayActivity", "Container ID from Intent: " + containerId);
@@ -940,8 +944,27 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 }
             }
             preloaderDialog.closeOnUiThread();
-            runOnUiThread(() -> AppUtils.restartApplication(getApplicationContext()));
+            runOnUiThread(() -> {
+                if (launchedFromShortcut) {
+                    goHome();
+                } else {
+                    AppUtils.restartApplication(getApplicationContext());
+                }
+            });
         });
+    }
+
+    /**
+     * Games launched from an Android home-screen shortcut should drop the user back on the launcher
+     * when they quit, rather than restarting into the app. We start the home activity and then let
+     * the process die (same pattern AppUtils.restartApplication uses for the in-app case).
+     */
+    private void goHome() {
+        Intent homeIntent = new Intent(Intent.ACTION_MAIN);
+        homeIntent.addCategory(Intent.CATEGORY_HOME);
+        homeIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(homeIntent);
+        Runtime.getRuntime().exit(0);
     }
 
     @Override
