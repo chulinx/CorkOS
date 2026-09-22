@@ -411,7 +411,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         String shortcutPath = getIntent().getStringExtra("shortcut_path");
         Log.d("XServerDisplayActivity", "Shortcut Path: " + shortcutPath);
 
-        launchedFromShortcut = getIntent().getBooleanExtra("launched_from_shortcut", false);
+        launchedFromShortcut = "shortcut".equals(getIntent().getStringExtra("launch_source"));
         Log.d("XServerDisplayActivity", "Launched from home-screen shortcut: " + launchedFromShortcut);
 
         int containerId = getIntent().getIntExtra("container_id", 0);

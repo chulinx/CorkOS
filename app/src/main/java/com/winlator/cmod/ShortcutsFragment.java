@@ -692,7 +692,10 @@ public class ShortcutsFragment extends Fragment {
         intent.putExtra("shortcut_path", shortcutPath);
         // Marks a game launched straight from an Android home-screen shortcut, so that on exit we
         // can send the user back to the launcher instead of restarting into the app.
-        intent.putExtra("launched_from_shortcut", true);
+        // NOTE: use a String extra, not a boolean — some launchers/Android versions drop custom
+        // boolean extras when persisting a pinned shortcut's intent, but String extras survive
+        // (shortcut_path is itself a String extra and is preserved).
+        intent.putExtra("launch_source", "shortcut");
         return new ShortcutInfo.Builder(getActivity(), uuid)
                 .setShortLabel(shortLabel)
                 .setLongLabel(longLabel)
