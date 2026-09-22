@@ -639,7 +639,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="vkbasalt_sharpness_level">Sharpness Level</string>
     <string name="num_controllers">Number of Controllers</string>
     <string name="vkbasalt_sharpness_denoise">Sharpeness Denoise</string>
-    <string name="shutdown">Shutdown</string>
+    <string name="shutdown">Closing game</string>
     <string name="disable_mouse">Toggle Mouse</string>
     <string name="installing_wine_files">Installing Wine Files...</string>
     <string name="installing_drivers_files">Installing System Driver Files...</string>
