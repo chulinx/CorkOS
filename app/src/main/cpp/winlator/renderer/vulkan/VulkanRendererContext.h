@@ -229,6 +229,14 @@ private:
         bool                 needsTransition = false;
         AHardwareBuffer*     ahb            = nullptr;
     };
+    // A texture that has been logically destroyed but may still be referenced by a
+    // command buffer that is in flight.  `serial` is the frame serial whose submission
+    // was the last one to touch it, so it can only be freed once that serial completed.
+    struct RetiredTex {
+        WinTex wt;
+        uint64_t serial = 0;
+        AHardwareBuffer* ahb = nullptr;
+    };
 
     struct RenderEntry { int64_t id; int x, y; };
     struct DrawEntry {
@@ -295,7 +303,12 @@ public:
     std::unordered_map<AHardwareBuffer*, WinTex>              ahbImportCache;
     std::unordered_map<int64_t, std::vector<AHardwareBuffer*>> windowAhbs;
 
-    std::vector<WinTex>    deleteQueue;
+    std::vector<RetiredTex> deleteQueue;
+    std::atomic<bool> retirePending{false};
+    uint64_t submittedSerial = 0;
+    uint64_t completedSerial = 0;
+    uint64_t pendingFrameSerial = 0;
+    uint64_t slotSerial[MAX_FRAMES_IN_FLIGHT] = {};
     std::vector<RenderEntry> renderList;
 
     std::vector<DrawEntry>             frameDraws;
@@ -308,6 +321,9 @@ public:
 
     std::atomic<bool> cursorVisible{false};
     short  cursorHotX=0, cursorHotY=0, cursorTexW=0, cursorTexH=0;
+    // Size requested by updateCursorImage().  The image is (re)created on the render
+    // thread, because the old image may still be referenced by an in-flight frame.
+    short  cursorPendingW=0, cursorPendingH=0;
     std::vector<uint32_t>  cursorPixels;
     std::atomic<bool> isCursorImageDirty{false};
     std::atomic<bool> cursorMoved{false};
@@ -316,11 +332,12 @@ public:
     VkDeviceMemory  cursorMem   = VK_NULL_HANDLE;
     VkImageView     cursorView  = VK_NULL_HANDLE;
     VkDescriptorSet  cursorDS   = VK_NULL_HANDLE;
-    VkBuffer         cursorStg  = VK_NULL_HANDLE;
-    VkDeviceMemory   cursorStgM = VK_NULL_HANDLE;
-    void*            cursorStgP = nullptr;
-    VkDeviceSize     cursorStgC = 0;
-    VkDeviceSize     cursorUploadSize = 0;
+    // One staging buffer per frame slot: two frames can be in flight at once and each
+    // needs its own copy of the cursor pixels until its submission has completed.
+    VkBuffer         cursorStg[MAX_FRAMES_IN_FLIGHT] = {};
+    VkDeviceMemory   cursorStgM[MAX_FRAMES_IN_FLIGHT] = {};
+    void*            cursorStgP[MAX_FRAMES_IN_FLIGHT] = {};
+    VkDeviceSize     cursorStgC[MAX_FRAMES_IN_FLIGHT] = {};
 
     VkInstance       instance;
     VkSurfaceKHR     surface;
@@ -391,9 +408,11 @@ public:
     // that is submitted after the scene pass and waits on disSem.
     VkCommandBuffer disCmd = VK_NULL_HANDLE;
     VkSemaphore     disSem = VK_NULL_HANDLE;
-    VkSemaphore     genAcqSems[FG_MAX_GENERATIONS]{};
-    // One semaphore per presented image (generated frames + the real frame).
-    VkSemaphore     fgPresentSems[FG_MAX_GENERATIONS + 1]{};
+    // Acquire semaphores for the extra swapchain images, one set per frame slot: a
+    // semaphore may be re-signaled only after the frame slot that waited on it has
+    // completed, otherwise a later acquire can satisfy an earlier pending wait and
+    // stall the queue forever.  Presenting uses renderDoneSems, indexed by image.
+    VkSemaphore     genAcqSems[MAX_FRAMES_IN_FLIGHT][FG_MAX_GENERATIONS]{};
     uint64_t        sourceFrames = 0;
     // Diagnostics: how many frames we actually presented through the FG path, how many DIS
     // generations that produced, and how many were dropped because no swapchain image could be
@@ -465,6 +484,9 @@ public:
     std::thread       renderThread;
     std::atomic<bool> isRunning{false};
     std::atomic<bool> fbResized{false};
+    // Set when the swapchain has to be rebuilt; renderLoop backs off instead of
+    // spinning on a surface that keeps failing.
+    std::atomic<bool> swapchainRetryPending{false};
     std::mutex        renderMutex;
     std::mutex        dirtyMutex;
     std::condition_variable dirtyCV;
@@ -527,10 +549,11 @@ public:
     bool  importAHBToWinTex(WinTex& wt, AHardwareBuffer* ahb);
     void  cleanupAllAHBCache();
     void  flushDeleteQueue();
+    void  destroyTexNow(RetiredTex& retired);
     void  destroyWinTex(WinTex& wt);
     void  ensureCursorTex(short w, short h);
     void  cleanupCursorTex();
-    void  ensureCursorStaging(VkDeviceSize sz);
+    void  ensureCursorStaging(VkDeviceSize sz, uint32_t slot);
 
     void recordCmdBuf(VkCommandBuffer cb, uint32_t imgIdx,
         const std::vector<DrawEntry>& draws,
