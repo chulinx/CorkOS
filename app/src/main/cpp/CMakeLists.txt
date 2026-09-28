@@ -2,6 +2,16 @@ cmake_minimum_required(VERSION 3.22.1)
 
 project(Winlator)
 
+# GLSL -> SPIR-V. glslangValidator is not reliably on PATH: a Homebrew install is keg-only (so
+# /opt/homebrew/bin/glslangValidator does not exist), and Gradle's build environment inherits a
+# minimal PATH. Resolve an absolute path once and only fall back to the bare name.
+find_program(GLSLANG_VALIDATOR glslangValidator
+        HINTS /opt/homebrew/opt/glslang/bin /opt/homebrew/bin /usr/local/bin)
+if(NOT GLSLANG_VALIDATOR)
+    set(GLSLANG_VALIDATOR glslangValidator)
+endif()
+message(STATUS "GLSL compiler: ${GLSLANG_VALIDATOR}")
+
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -Wno-unused-function -Wimplicit-function-declaration")
 
 add_subdirectory(OpenXR-SDK)
@@ -69,7 +79,7 @@ set(VULKAN_RENDERER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/winlator/renderer/vulkan)
 
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/window_vert.h
-    COMMAND glslangValidator -V --vn window_vert_code
+    COMMAND ${GLSLANG_VALIDATOR} -V --vn window_vert_code
             -x -o ${CMAKE_CURRENT_BINARY_DIR}/window_vert.h
             ${VULKAN_RENDERER_DIR}/window.vert
     DEPENDS ${VULKAN_RENDERER_DIR}/window.vert
@@ -78,7 +88,7 @@ add_custom_command(
 
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/window_frag.h
-    COMMAND glslangValidator -V --vn window_frag_code
+    COMMAND ${GLSLANG_VALIDATOR} -V --vn window_frag_code
             -x -o ${CMAKE_CURRENT_BINARY_DIR}/window_frag.h
             ${VULKAN_RENDERER_DIR}/window.frag
     DEPENDS ${VULKAN_RENDERER_DIR}/window.frag
@@ -87,7 +97,7 @@ add_custom_command(
 
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/window_sgsr_frag.h
-    COMMAND glslangValidator -V --vn window_sgsr_frag_code
+    COMMAND ${GLSLANG_VALIDATOR} -V --vn window_sgsr_frag_code
             -x -o ${CMAKE_CURRENT_BINARY_DIR}/window_sgsr_frag.h
             ${VULKAN_RENDERER_DIR}/window_sgsr.frag
     DEPENDS ${VULKAN_RENDERER_DIR}/window_sgsr.frag
@@ -96,7 +106,7 @@ add_custom_command(
 
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/window_fsr1_frag.h
-    COMMAND glslangValidator -V --vn window_fsr1_frag_code
+    COMMAND ${GLSLANG_VALIDATOR} -V --vn window_fsr1_frag_code
             -x -o ${CMAKE_CURRENT_BINARY_DIR}/window_fsr1_frag.h
             ${VULKAN_RENDERER_DIR}/window_fsr1.frag
     DEPENDS ${VULKAN_RENDERER_DIR}/window_fsr1.frag
@@ -105,7 +115,7 @@ add_custom_command(
 
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/window_lanczos_frag.h
-    COMMAND glslangValidator -V --vn window_lanczos_frag_code
+    COMMAND ${GLSLANG_VALIDATOR} -V --vn window_lanczos_frag_code
             -x -o ${CMAKE_CURRENT_BINARY_DIR}/window_lanczos_frag.h
             ${VULKAN_RENDERER_DIR}/window_lanczos.frag
     DEPENDS ${VULKAN_RENDERER_DIR}/window_lanczos.frag
@@ -114,7 +124,7 @@ add_custom_command(
 
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/window_stretch_frag.h
-    COMMAND glslangValidator -V --vn window_stretch_frag_code
+    COMMAND ${GLSLANG_VALIDATOR} -V --vn window_stretch_frag_code
             -x -o ${CMAKE_CURRENT_BINARY_DIR}/window_stretch_frag.h
             ${VULKAN_RENDERER_DIR}/window_stretch.frag
     DEPENDS ${VULKAN_RENDERER_DIR}/window_stretch.frag
@@ -123,7 +133,7 @@ add_custom_command(
 
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/window_postfx_frag.h
-    COMMAND glslangValidator -V --vn window_postfx_frag_code
+    COMMAND ${GLSLANG_VALIDATOR} -V --vn window_postfx_frag_code
             -x -o ${CMAKE_CURRENT_BINARY_DIR}/window_postfx_frag.h
             ${VULKAN_RENDERER_DIR}/window_postfx.frag
     DEPENDS ${VULKAN_RENDERER_DIR}/window_postfx.frag
@@ -141,6 +151,7 @@ set(DIS_SHADERS
         dis_propagate
         dis_densify
         dis_interpolate
+        dis_sharpen
         dis_vr_prep
         dis_vr_d1
         dis_vr_d2
@@ -158,7 +169,7 @@ foreach(DIS_SHADER ${DIS_SHADERS})
     add_custom_command(
             OUTPUT ${DIS_SPV}
             COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/shaders
-            COMMAND glslangValidator -V -o ${DIS_SPV} ${DIS_DIR}/shaders/${DIS_SHADER}.comp
+            COMMAND ${GLSLANG_VALIDATOR} -V -o ${DIS_SPV} ${DIS_DIR}/shaders/${DIS_SHADER}.comp
             DEPENDS ${DIS_DIR}/shaders/${DIS_SHADER}.comp
             COMMENT "Compiling ${DIS_SHADER}.comp -> SPIR-V"
     )

@@ -8,11 +8,16 @@ layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 layout(set = 0, binding = 0) uniform sampler2D prevColor;
 layout(set = 0, binding = 1) uniform sampler2D nextColor;
 layout(set = 0, binding = 2) uniform sampler2D flowTex;
+// A coarser level of the same flow pyramid, used as the repair reference (see repairFlow).
+layout(set = 0, binding = 3) uniform sampler2D flowCoarseTex;
 layout(set = 0, binding = 5, rgba8) uniform image2D outImage;
 
 layout(push_constant) uniform PC {
     float t;
     int debugMode;
+    float strength;
+    float motionFloor;
+    int clean;          // 0 disables the adaptive ghosting repair entirely
 } pc;
 
 layout(constant_id = 0) const int manualFlowFilter = 0;
@@ -39,6 +44,140 @@ vec3 hsv2rgb(vec3 c) {
     return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
 }
 
+// Flowfix/Flowrepair approximation, second revision. NeoMirror has dedicated repair stages; CorkOS
+// keeps the pass in this shader so it needs no extra image/binding.
+//
+// The first revision missed the case that actually matters. It looked at the four axis neighbours
+// only, took a plain mean of them, and decided "unreliable" purely from the local spread of the
+// flow field. But DIS's characteristic failure is not an isolated outlier: when it loses a large
+// motion it reports a *wrong*, usually too small, vector for a whole connected region. Inside such
+// a region the spread is LOW, so the repair never fired exactly where it was needed.
+//
+// Three changes:
+//   * eight neighbours instead of four, so a diagonal edge is described too;
+//   * the replacement is a robust estimate -- average, then drop the neighbour farthest from that
+//     average and re-average -- so one bad neighbour cannot drag the estimate with it;
+//   * a second, independent trigger. Colour evidence (how far the two warps disagree) fires inside
+//     a uniformly wrong region, where no purely local flow statistic can help.
+// The coarse view of the flow field, taken from a coarser level of the same pyramid.
+//
+// This is the part that stands in for NeoMirror's Gflow stage. DIS's finest level is the most
+// detailed but also the least reliable, and when it locks onto the wrong match it does so in
+// patches -- which is what makes the flow view look interleaved rather than a smooth gradient.
+// The neighbours of a wrong vector are wrong in the same way, so no purely local test can see it;
+// a coarser level still carries the dominant motion of the region, which is what the interpolation
+// should fall back to there. Earlier revisions approximated this by averaging a ring of the finest
+// level, which cannot recover motion the finest level never got right.
+vec2 coarseFlow(vec2 uv) {
+    return textureLod(flowCoarseTex, clamp(uv, vec2(0.0), vec2(1.0)), 0.0).xy;
+}
+
+// Fade at an arbitrary point, for the debug metric below. Only the disagreement term is sampled:
+// it is the dominant one, and a shader invocation cannot see the rest of the frame, so the metric
+// is an estimate from a small grid rather than an exact average. Three taps per point.
+float sampleFade(vec2 uv) {
+    vec2 f = sampleFlow(uv);
+    vec3 c0 = textureLod(prevColor, clamp(uv - pc.t * f, vec2(0.0), vec2(1.0)), 0.0).xyz;
+    vec3 c1 = textureLod(nextColor, clamp(uv + (1.0 - pc.t) * f, vec2(0.0), vec2(1.0)), 0.0).xyz;
+    return smoothstep(0.13, 0.38, dot(abs(c0 - c1), vec3(1.0)));
+}
+
+// Mean fade over a 4x3 grid, i.e. "how much of the frame gave up interpolation", in [0,1].
+float meanFadeEstimate() {
+    float sum = 0.0;
+    for (int gy = 0; gy < 3; gy++) {
+        for (int gx = 0; gx < 4; gx++) {
+            sum += sampleFade(vec2((float(gx) + 0.5) / 4.0, (float(gy) + 0.5) / 3.0));
+        }
+    }
+    return sum / 12.0;
+}
+
+// Edge-aware smoothing of the flow field, standing in for NeoMirror's Refine stage.
+//
+// A noisy field makes the warp jitter from pixel to pixel, and that is what shows up as jagged,
+// "combed" edges -- the image is not blurred, it is rough. Smoothing fixes it, but a plain blur
+// would drag the flow across motion boundaries and make the edges worse instead, so each neighbour
+// is weighted by how similar its colour is to the centre. That keeps the smoothing inside a
+// surface and stops it crossing a real edge. Four extra flow taps plus four colour taps.
+vec2 refineFlow(vec2 uv, vec2 flowSize, vec2 f, out float jitter) {
+    vec2 stepUv = 1.0 / flowSize;
+    vec2 lo = vec2(0.0), hi = vec2(1.0);
+    vec3 c = textureLod(prevColor, clamp(uv, lo, hi), 0.0).xyz;
+
+    vec2 acc = f;
+    float wsum = 1.0;
+    for (int i = 0; i < 4; i++) {
+        vec2 o = (i == 0) ? vec2(stepUv.x, 0.0)
+               : (i == 1) ? vec2(-stepUv.x, 0.0)
+               : (i == 2) ? vec2(0.0, stepUv.y)
+                          : vec2(0.0, -stepUv.y);
+        vec2 nuv = clamp(uv + o, lo, hi);
+        vec3 cn = textureLod(prevColor, nuv, 0.0).xyz;
+        float w = exp(-dot(abs(cn - c), vec3(14.0)));
+        acc += sampleFlow(nuv) * w;
+        wsum += w;
+    }
+    vec2 smoothed = acc / wsum;
+    jitter = length(f - smoothed);
+    return smoothed;
+}
+
+vec2 repairFlow(vec2 uv, vec2 flowSize, vec2 f, float disagree, out float repairHot) {
+    vec2 stepUv = 1.0 / flowSize;
+    vec2 lo = vec2(0.0), hi = vec2(1.0);
+
+    vec2 n0 = sampleFlow(clamp(uv + vec2(-stepUv.x, 0.0), lo, hi));
+    vec2 n1 = sampleFlow(clamp(uv + vec2( stepUv.x, 0.0), lo, hi));
+    vec2 n2 = sampleFlow(clamp(uv + vec2(0.0, -stepUv.y), lo, hi));
+    vec2 n3 = sampleFlow(clamp(uv + vec2(0.0,  stepUv.y), lo, hi));
+    vec2 n4 = sampleFlow(clamp(uv + vec2(-stepUv.x, -stepUv.y), lo, hi));
+    vec2 n5 = sampleFlow(clamp(uv + vec2( stepUv.x, -stepUv.y), lo, hi));
+    vec2 n6 = sampleFlow(clamp(uv + vec2(-stepUv.x,  stepUv.y), lo, hi));
+    vec2 n7 = sampleFlow(clamp(uv + vec2( stepUv.x,  stepUv.y), lo, hi));
+
+    vec2 sum = n0 + n1 + n2 + n3 + n4 + n5 + n6 + n7;
+    vec2 mean = sum * 0.125;
+
+    // Drop the single worst neighbour, then re-average the remaining seven.
+    vec2 dropped = n0;
+    float worst = dot(n0 - mean, n0 - mean);
+    float q = dot(n1 - mean, n1 - mean); if (q > worst) { worst = q; dropped = n1; }
+    q = dot(n2 - mean, n2 - mean);       if (q > worst) { worst = q; dropped = n2; }
+    q = dot(n3 - mean, n3 - mean);       if (q > worst) { worst = q; dropped = n3; }
+    q = dot(n4 - mean, n4 - mean);       if (q > worst) { worst = q; dropped = n4; }
+    q = dot(n5 - mean, n5 - mean);       if (q > worst) { worst = q; dropped = n5; }
+    q = dot(n6 - mean, n6 - mean);       if (q > worst) { worst = q; dropped = n6; }
+    q = dot(n7 - mean, n7 - mean);       if (q > worst) { worst = q; dropped = n7; }
+    vec2 robust = (sum - dropped) * (1.0 / 7.0);
+
+    float spread = (length(f - n0) + length(f - n1) + length(f - n2) + length(f - n3)
+                  + length(f - n4) + length(f - n5) + length(f - n6) + length(f - n7)) * 0.125;
+
+    // Distance from the local consensus, and the colour evidence. The colour term is the one that
+    // catches a uniformly wrong region, so it is allowed to fire on its own.
+    // The coarse pyramid level, standing in for the Gflow stage.
+    vec2 coarse = coarseFlow(uv);
+    float dev = length(f - robust);
+    float coarseDev = length(f - coarse);
+
+    float sig = smoothstep(0.018, 0.085, spread);
+    sig = max(sig, smoothstep(0.05, 0.30, dev));
+    // A fine vector that disagrees with the wide consensus is the wrong-match signature, and it
+    // fires even when the whole neighbourhood is wrong in the same way (spread and dev both stay
+    // low there, which is why the first revision missed it).
+    sig = max(sig, smoothstep(0.03, 0.20, coarseDev));
+    sig = max(sig, smoothstep(0.12, 0.40, disagree));
+
+    repairHot = sig;
+    // Repair toward the consensus rather than only the 8-neighbour mean: inside a wrong patch the
+    // neighbours are wrong in the same way, so only the wider view carries the right motion. Blend
+    // by which of the two the current vector is further from.
+    vec2 target = mix(robust, coarse, clamp(coarseDev / max(coarseDev + dev, 1e-4), 0.0, 1.0));
+    // Replace only the unreliable fraction, so genuine motion boundaries stay sharp.
+    return mix(f, target, sig * 0.85);
+}
+
 void main() {
     ivec2 pix = ivec2(gl_GlobalInvocationID.xy);
     ivec2 size = imageSize(outImage);
@@ -61,13 +200,23 @@ void main() {
         f = mix(fInner, f, edgeMix);
     }
 
-    if (pc.debugMode != 0) {
-        float m = length(f) * float(size.x) / 16.0;
-        float hue = atan(f.y, f.x) / 6.2831853 + 0.5;
-        vec3 fc = hsv2rgb(vec3(hue, clamp(m, 0.0, 1.0), min(1.0, 0.15 + m)));
-        imageStore(outImage, pix, vec4(fc, 1.0));
-        return;
+    float repairHot = 0.0;
+    if (pc.clean != 0) {
+        // Gather the colour evidence with the RAW flow, before repairing. This has to happen first:
+        // the repair pulls a vector toward its neighbours, and inside a uniformly wrong region that
+        // makes the field look self-consistent, hiding the very failure we need to detect. Two extra
+        // taps, only on this path.
+        vec3 p0 = textureLod(prevColor, clamp(uv - pc.t * f, vec2(0.0), vec2(1.0)), 0.0).xyz;
+        vec3 p1 = textureLod(nextColor, clamp(uv + (1.0 - pc.t) * f, vec2(0.0), vec2(1.0)), 0.0).xyz;
+        float disagreeRaw = dot(abs(p0 - p1), vec3(1.0));
+        f = repairFlow(uv, vec2(textureSize(flowTex, 0)), f, disagreeRaw, repairHot);
     }
+
+    // Edge-aware smoothing always runs, repair or not: jagged edges come from a field that is
+    // noisy rather than wrong, and that is present even when no single vector is off by enough for
+    // the repair to fire.
+    float jitter = 0.0;
+    f = refineFlow(uv, vec2(textureSize(flowTex, 0)), f, jitter);
 
     vec2 uv0 = uv - pc.t * f;
     vec2 uv1 = uv + (1.0 - pc.t) * f;
@@ -92,8 +241,98 @@ void main() {
         ? (c0 * w0 + c1 * w1) / wsum
         : (out0 <= out1 ? c0 : c1);
 
-    float occl = smoothstep(0.10, 0.40, dot(abs(c0 - c1), vec3(1.0)));
+    // How far the two warped samples disagree. This is the reliability signal: when the flow is
+    // right both warps land on the same content and this is ~0; when DIS has lost track (fast
+    // rotation, disocclusion) they land on different content and it grows.
+    float disagree = dot(abs(c0 - c1), vec3(1.0));
+
+    // Lowered from (0.06, 0.22): a misalignment in a flat or dim region produces only a small
+    // absolute difference, so the old window never opened there and the smear survived. The
+    // suppression slider cannot reach this -- it only scales the fade where the trigger already
+    // fired, which is exactly what made "crank the slider" look like it did nothing.
+    float occl = smoothstep(0.13, 0.38, disagree);
     result = mix(result, single, occl);
+
+    // Frame-gen intensity, made adaptive on TWO independent signals, taking whichever fires
+    // harder.
+    //
+    // Fading the interpolated result toward the nearest real frame (single) trades temporal
+    // smoothing for less trailing. One global amount is a bad fit, so the fade is scaled down
+    // where the interpolation is least trustworthy:
+    //
+    //   * motion magnitude -- DIS is a coarse-to-fine estimator whose vectors degrade badly once
+    //     per-frame displacement gets large, and a fast camera pan displaces most of the frame
+    //     at once.
+    //   * colour disagreement -- the safety net. When DIS loses track of large motion it does not
+    //     report a huge vector, it reports a *wrong* (usually too small) one, so magnitude alone
+    //     can miss the failure. Disagreement between the two warped samples catches it directly.
+    //
+    // Calm regions keep the full requested strength (maximum smoothness, no visible cost); hard
+    // motion collapses the smear automatically. Also computed for the debug view, which reports it.
+    float fade = 0.0;
+    if (pc.clean != 0) {
+        const float MOTION_LO_PX   = 20.0;  // at/below this displacement: full requested strength
+        const float MOTION_HI_PX   = 80.0;  // at/above this: strength * motionFloor
+        const float DISAGREE_LO    = 0.15;  // below this disagreement: full requested strength
+        const float DISAGREE_HI    = 0.50;  // at/above this: strength * motionFloor
+
+        float motionPx = length(f) * float(size.x);
+        float hot = max(max(smoothstep(MOTION_LO_PX, MOTION_HI_PX, motionPx),
+                            smoothstep(DISAGREE_LO, DISAGREE_HI, disagree)),
+                        repairHot * 0.90);
+        // motionFloor is exposed to the UI as "ghosting suppression": 1.0 keeps the full
+        // requested strength everywhere (no adaptive suppression), 0.0 collapses the generated
+        // frame onto the real frame wherever either signal fires.
+        float s = pc.strength * mix(1.0, clamp(pc.motionFloor, 0.0, 1.0), hot);
+
+        float w = clamp(1.0 - s, 0.0, 1.0);
+        // Where the flow is clearly unreliable, do not leave a fraction of the interpolation alive.
+        // The residual is exactly what smears: at the default suppression the fade only reaches
+        // ~0.79, so 21% of a wrong interpolation is still mixed in and reads as a ghost. Once the
+        // reliability signal is this strong there is nothing worth keeping -- collapse the rest of
+        // the way to a real frame, which costs smoothness but removes the smear.
+        w = max(w, smoothstep(0.55, 0.95, hot));
+        result = mix(result, single, w);
+        // How much of this pixel gave up interpolation and fell back to a real frame. This is the
+        // number that decides whether ghosting is possible here at all: 0 means the pixel is a pure
+        // optical-flow interpolation (smoothest, and where any smear would show), 1 means it is
+        // effectively a copy of a real frame (no smear, no smoothing benefit).
+        fade = clamp(max(occl, w), 0.0, 1.0);
+    }
+
+    if (pc.debugMode != 0) {
+        // Split view so a tuning change can be judged without guessing:
+        //   top half    -- the optical flow field (hue = direction, brightness = magnitude)
+        //   bottom half -- the fade map: green = pure interpolation, red = fell back to a real
+        //                  frame. Watch how much red appears while panning fast; less red for the
+        //                  same motion means the interpolation is trusted over more of the frame.
+        float m = length(f) * float(size.x) / 16.0;
+        float hue = atan(f.y, f.x) / 6.2831853 + 0.5;
+        vec3 fc = hsv2rgb(vec3(hue, clamp(m, 0.0, 1.0), min(1.0, 0.15 + m)));
+        vec3 tc = mix(vec3(0.10, 0.90, 0.20), vec3(0.95, 0.15, 0.10), fade);
+        vec3 outC = pix.y * 2 < size.y ? fc : tc;
+
+        // Metric bar over the fade half: ten blocks lit in proportion to the mean fade, so counting
+        // the lit blocks reads the faded fraction in 10% steps. Judging the heat map by eye is too
+        // coarse to tell two builds apart; a countable bar is not.
+        const int barX0 = 60;
+        const int blockW = 48;
+        const int blockGap = 8;
+        const int blockH = 48;
+        int barY0 = size.y / 2 + 80;
+        int bx = pix.x - barX0;
+        int by = pix.y - barY0;
+        if (bx >= 0 && by >= 0 && by < blockH) {
+            int idx = bx / (blockW + blockGap);
+            int within = bx - idx * (blockW + blockGap);
+            if (idx < 10 && within < blockW) {
+                int lit = int(meanFadeEstimate() * 10.0 + 0.5);
+                outC = idx < lit ? vec3(0.95, 0.20, 0.15) : vec3(0.20, 0.20, 0.22);
+            }
+        }
+        imageStore(outImage, pix, vec4(outC, 1.0));
+        return;
+    }
 
     imageStore(outImage, pix, vec4(result, 1.0));
 }

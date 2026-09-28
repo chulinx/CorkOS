@@ -137,6 +137,28 @@ public class VulkanXServerView extends XServerRendererView implements SurfaceHol
     private native void nativeSetFrameGenEnabled(long handle, boolean enabled);
     private native void nativeSetFrameGenConfig(long handle, int flowMinSide, int targetFps, float refreshRate);
     private native void nativeSetFrameGenDebugFlow(long handle, boolean on);
+    /** strength in [0,1]: 1 = pure interpolation, lower = less ghosting / less smoothing */
+    private native void nativeSetFrameGenStrength(long handle, float strength);
+    /** motionFloor in [0,1]: fraction of strength surviving where motion/unreliability maxes out */
+    private native void nativeSetFrameGenMotionFloor(long handle, float motionFloor);
+
+    // Full frame-generation configuration (mirrors the Bionic build's surface).
+    private native void nativeSetFGQualityMode(long handle, int mode);
+    private native void nativeSetFGFlowScale(long handle, int scale);
+    private native void nativeSetFGRenderScale(long handle, float scale);
+    private native void nativeSetFGTargetFps(long handle, int fps);
+    private native void nativeSetFGFloorFps(long handle, int fps);
+    private native void nativeSetFGMaxMult(long handle, int mult);
+    private native void nativeSetFGGeneratedFrameCount(long handle, int count);
+    private native void nativeSetFGPostProcess(long handle, boolean on);
+    private native void nativeSetFGArtifactClean(long handle, boolean on);
+    private native void nativeSetFGPerfMode(long handle, boolean on);
+    private native void nativeSetFGFp16(long handle, boolean on);
+    private native void nativeSetFGHeatmap(long handle, boolean on);
+    private native void nativeSetFGCzCarryPct(long handle, int pct);
+    private native void nativeSetFGCzMax(long handle, int czMax);
+    private native boolean nativeIsFGActive(long handle);
+    private native void nativeLogFGStageTimes(long handle);
     /** {realFrames, generatedFrames, droppedGenerations} */
     private native long[] nativeGetFrameGenCounts(long handle);
     private native void nativeSetFrameGenMultiplier(long handle, int mult);
@@ -649,6 +671,111 @@ public class VulkanXServerView extends XServerRendererView implements SurfaceHol
 
     public void setFrameGenDebugFlow(boolean on) {
         synchronized (lock) { if (nativeHandle != 0) nativeSetFrameGenDebugFlow(nativeHandle, on); }
+    }
+
+    /**
+     * Interpolation intensity. 1.0 keeps the pure optical-flow interpolation; lower values
+     * bleed the nearest real frame in, which visibly reduces trailing/ghosting on fast-moving
+     * and disoccluded content at the cost of some temporal smoothing.
+     */
+    public void setFrameGenStrength(float strength) {
+        synchronized (lock) {
+            if (nativeHandle != 0) nativeSetFrameGenStrength(nativeHandle, strength);
+        }
+    }
+
+    /**
+     * Ghosting suppression. How much of {@link #setFrameGenStrength} survives where the adaptive
+     * "this interpolation is untrustworthy" signal maxes out. 1.0 disables adaptive suppression;
+     * lower values collapse the generated frame toward the real frame on fast motion, which is
+     * what actually removes trailing when turning the camera quickly.
+     */
+    public void setFrameGenMotionFloor(float motionFloor) {
+        synchronized (lock) {
+            if (nativeHandle != 0) nativeSetFrameGenMotionFloor(nativeHandle, motionFloor);
+        }
+    }
+
+    /* --- Full frame-generation configuration (Bionic parity) --------------------------------- */
+
+    /** 0 = performance, 1 = stable (fixed target rate), 2 = quality. */
+    public void setFGQualityMode(int mode) {
+        synchronized (lock) { if (nativeHandle != 0) nativeSetFGQualityMode(nativeHandle, mode); }
+    }
+
+    /** Optical-flow working resolution, as the minimum side of the flow pyramid in pixels. */
+    public void setFGFlowScale(int flowMinSide) {
+        synchronized (lock) { if (nativeHandle != 0) nativeSetFGFlowScale(nativeHandle, flowMinSide); }
+    }
+
+    /** Resolution the generation runs at as a fraction of the output; lower is much faster. */
+    public void setFGRenderScale(float scale) {
+        synchronized (lock) { if (nativeHandle != 0) nativeSetFGRenderScale(nativeHandle, scale); }
+    }
+
+    /** Desired output rate. 0 follows the panel. */
+    public void setFGTargetFps(int fps) {
+        synchronized (lock) { if (nativeHandle != 0) nativeSetFGTargetFps(nativeHandle, fps); }
+    }
+
+    /** Do not generate while the source rate is below this. 0 disables the floor. */
+    public void setFGFloorFps(int fps) {
+        synchronized (lock) { if (nativeHandle != 0) nativeSetFGFloorFps(nativeHandle, fps); }
+    }
+
+    /** Hard cap on the output multiplier. */
+    public void setFGMaxMult(int mult) {
+        synchronized (lock) { if (nativeHandle != 0) nativeSetFGMaxMult(nativeHandle, mult); }
+    }
+
+    /** Frames inserted per real frame when pacing is not rate-driven. */
+    public void setFGGeneratedFrameCount(int count) {
+        synchronized (lock) { if (nativeHandle != 0) nativeSetFGGeneratedFrameCount(nativeHandle, count); }
+    }
+
+    /** Sharpen generated frames to offset interpolation softness. */
+    public void setFGPostProcess(boolean on) {
+        synchronized (lock) { if (nativeHandle != 0) nativeSetFGPostProcess(nativeHandle, on); }
+    }
+
+    /** Repair unreliable flow before interpolating — this is what removes trailing on fast motion. */
+    public void setFGArtifactClean(boolean on) {
+        synchronized (lock) { if (nativeHandle != 0) nativeSetFGArtifactClean(nativeHandle, on); }
+    }
+
+    /** Skip the expensive refinement stages. */
+    public void setFGPerfMode(boolean on) {
+        synchronized (lock) { if (nativeHandle != 0) nativeSetFGPerfMode(nativeHandle, on); }
+    }
+
+    /** Prefer 16-bit intermediates. */
+    public void setFGFp16(boolean on) {
+        synchronized (lock) { if (nativeHandle != 0) nativeSetFGFp16(nativeHandle, on); }
+    }
+
+    /** Colourise the flow for debugging. */
+    public void setFGHeatmap(boolean on) {
+        synchronized (lock) { if (nativeHandle != 0) nativeSetFGHeatmap(nativeHandle, on); }
+    }
+
+    /** Pacing carry, percent of an unused generation budget carried to the next frame. */
+    public void setFGCzCarryPct(int pct) {
+        synchronized (lock) { if (nativeHandle != 0) nativeSetFGCzCarryPct(nativeHandle, pct); }
+    }
+
+    /** Pacing burst cap. */
+    public void setFGCzMax(int czMax) {
+        synchronized (lock) { if (nativeHandle != 0) nativeSetFGCzMax(nativeHandle, czMax); }
+    }
+
+    /** True once generation has actually produced output for the current configuration. */
+    public boolean isFGActive() {
+        synchronized (lock) { return nativeHandle != 0 && nativeIsFGActive(nativeHandle); }
+    }
+
+    /** Log per-stage timings (diagnostics). */
+    public void logFGStageTimes() {
+        synchronized (lock) { if (nativeHandle != 0) nativeLogFGStageTimes(nativeHandle); }
     }
 
     /** Output multiplier: 2 inserts one generated frame per real frame. */

@@ -170,6 +170,40 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private int frameGenQualityPos = 0;
     private int frameGenMultiplier = 2;
     private android.widget.Spinner fgMultSpinner = null;
+    /**
+     * Interpolation intensity in [0,1]. 1.0 is the pure optical-flow interpolation, which is
+     * smoothest but ghosts the most; lower values bleed the nearest real frame in and visibly
+     * cut down trailing on fast-moving content. 0.85 is the shipped default because a full
+     * 1.0 reads as smeared on most titles.
+     */
+    private float frameGenStrength = 0.85f;
+    private android.widget.SeekBar fgStrengthBar = null;
+    /** Shows the exact strength next to the slider, so it can be reproduced later. */
+    private android.widget.TextView fgStrengthValue = null;
+    /**
+     * Ghosting suppression in [0,1]. This is the adaptive part: the fraction of frameGenStrength
+     * that survives where motion is large or the two warped samples disagree. 0.25 means fast
+     * motion keeps only a quarter of the requested interpolation, which is what removes trailing
+     * when the camera swings. 1.0 disables the adaptive suppression entirely.
+     */
+    private float frameGenMotionFloor = 0.25f;
+    private android.widget.SeekBar fgSuppressBar = null;
+    /** Shows the exact suppression next to the slider. */
+    private android.widget.TextView fgSuppressValue = null;
+
+    // Full frame-generation configuration (Bionic parity). Defaults match the reference build.
+    private int frameGenRenderScalePct = 100;   // 40..100
+    // 0 = follow the panel refresh rate.  This matters: the panel here is 120 Hz, and forcing the
+    // Bionic default of 60 makes plan() compute ratio = 1 for a 60 fps source, which silently
+    // generates nothing.  Anything > 0 caps the output rate.
+    private int frameGenTargetFps = 0;
+    private int frameGenFloorFps = 0;
+    private boolean frameGenPostProcess = true;
+    private boolean frameGenArtifactClean = true;
+    private boolean frameGenPerfMode = false;
+    private boolean frameGenFp16 = true;
+    private boolean frameGenHeatmap = false;
+    private boolean fgAdvancedBuilt = false;
 
     private final android.os.Handler fgHudHandler = new android.os.Handler(android.os.Looper.getMainLooper());
     private long[] fgPrevCounts = null;
@@ -406,7 +440,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         String screenSize = Container.DEFAULT_SCREEN_SIZE;
         containerManager = new ContainerManager(this);
-        container = containerManager.getContainerById(getIntent().getIntExtra("container_id", 0));
+        container = containerManager.getContainerById(readContainerIdFromIntent());
 
         String shortcutPath = getIntent().getStringExtra("shortcut_path");
         Log.d("XServerDisplayActivity", "Shortcut Path: " + shortcutPath);
@@ -414,7 +448,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         launchedFromShortcut = "shortcut".equals(getIntent().getStringExtra("launch_source"));
         Log.d("XServerDisplayActivity", "Launched from home-screen shortcut: " + launchedFromShortcut);
 
-        int containerId = getIntent().getIntExtra("container_id", 0);
+        int containerId = readContainerIdFromIntent();
         Log.d("XServerDisplayActivity", "Container ID from Intent: " + containerId);
         if (containerId == 0) {
             Log.d("XServerDisplayActivity", "Container ID is 0, attempting to parse from .desktop file");
@@ -1361,18 +1395,38 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (shortcut != null) {
             String controlsProfile = shortcut.getExtra("controlsProfile");
             if (!controlsProfile.isEmpty()) {
-                ControlsProfile profile = inputControlsManager.getProfile(Integer.parseInt(controlsProfile));
-                if (profile != null)
+                ControlsProfile profile = null;
+                try {
+                    profile = inputControlsManager.getProfile(Integer.parseInt(controlsProfile.trim()));
+                } catch (NumberFormatException e) {
+                    Log.w("XServerDisplayActivity", "Malformed controlsProfile extra: " + controlsProfile);
+                }
+                if (profile != null) {
                     showInputControls(profile);
+                } else {
+                    Log.w("XServerDisplayActivity", "controlsProfile=" + controlsProfile
+                            + " does not resolve to a profile; virtual gamepad stays off");
+                }
             } else if (!hasPhysicalGamepad()) {
                 // Nothing configured and no controller attached: bring up the built-in virtual
                 // gamepad so the player has controls instead of an empty screen and a profile list.
+                Log.d("XServerDisplayActivity", "No controls profile set and no real gamepad; "
+                        + "falling back to the built-in Virtual Gamepad profile");
+                boolean shown = false;
                 for (ControlsProfile p : inputControlsManager.getProfiles()) {
                     if (p.getName() != null && p.getName().contains("Virtual Gamepad")) {
                         showInputControls(p);
+                        shown = true;
                         break;
                     }
                 }
+                if (!shown) {
+                    Log.w("XServerDisplayActivity", "No 'Virtual Gamepad' profile found among "
+                            + inputControlsManager.getProfiles().size() + " profiles");
+                }
+            } else {
+                Log.d("XServerDisplayActivity", "A real physical gamepad is connected; leaving the "
+                        + "virtual gamepad off (pick a profile in the sidebar to force it on)");
             }
 
             String simTouchScreen = shortcut.getExtra("simTouchScreen");
@@ -1396,6 +1450,27 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     editInputControlsCallback = null;
                 }
             });
+
+    /**
+     * Reads the container id from the launch intent, accepting both representations.
+     *
+     * <p>A home-screen shortcut is persisted by the launcher, and several launchers (MIUI's among
+     * them) keep only String extras when they do — an int extra silently disappears and the read
+     * below falls back to 0, which used to make the shortcut open and immediately finish() with
+     * "Failed to retrieve container with ID: 0". Pinned shortcuts therefore carry this value as a
+     * String; in-app navigation still passes the int form.
+     */
+    private int readContainerIdFromIntent() {
+        String asString = getIntent().getStringExtra("container_id");
+        if (asString != null && !asString.trim().isEmpty()) {
+            try {
+                return Integer.parseInt(asString.trim());
+            } catch (NumberFormatException ignored) {
+                Log.w("XServerDisplayActivity", "Malformed container_id extra: " + asString);
+            }
+        }
+        return getIntent().getIntExtra("container_id", 0);
+    }
 
     private String parseShortcutNameFromDesktopFile(File desktopFile) {
         String shortcutName = "";
@@ -2088,6 +2163,125 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 lp.topMargin = 8;
                 fgCard.addView(fgMultSpinner, lp);
             }
+
+            // Interpolation intensity. 1.0 keeps the pure optical-flow interpolation (smoothest,
+            // most ghosting); lower values bleed the nearest real frame in and visibly cut down
+            // trailing on fast-moving content.
+            if (fgStrengthBar == null && fgCard != null) {
+                fgStrengthValue = addFgLabel(fgCard,
+                        fgStrengthLabel(Math.round(frameGenStrength * 100f)), 12);
+                fgStrengthBar = addFgSeekBar(fgCard, 100, Math.round(frameGenStrength * 100f),
+                        new android.widget.SeekBar.OnSeekBarChangeListener() {
+                    @Override public void onProgressChanged(android.widget.SeekBar b, int progress,
+                                                            boolean fromUser) {
+                        frameGenStrength = progress / 100f;
+                        if (fgStrengthValue != null) fgStrengthValue.setText(fgStrengthLabel(progress));
+                        if (fromUser) applyFrameGen();
+                    }
+                    @Override public void onStartTrackingTouch(android.widget.SeekBar b) {}
+                    @Override public void onStopTrackingTouch(android.widget.SeekBar b) { applyFrameGen(); }
+                });
+            }
+
+            // Ghosting suppression: the adaptive half of the control. Higher = the generated
+            // frame gives up more of its interpolation on fast motion, which is what actually
+            // kills trailing when the camera swings. Maps to motionFloor = 1 - value.
+            if (fgSuppressBar == null && fgCard != null) {
+                final int startSuppress = Math.round((1.0f - frameGenMotionFloor) * 100f);
+                fgSuppressValue = addFgLabel(fgCard, fgSuppressLabel(startSuppress), 12);
+                fgSuppressBar = addFgSeekBar(fgCard, 100, startSuppress,
+                        new android.widget.SeekBar.OnSeekBarChangeListener() {
+                    @Override public void onProgressChanged(android.widget.SeekBar b, int progress,
+                                                            boolean fromUser) {
+                        frameGenMotionFloor = 1.0f - (progress / 100f);
+                        if (fgSuppressValue != null) fgSuppressValue.setText(fgSuppressLabel(progress));
+                        if (fromUser) applyFrameGen();
+                    }
+                    @Override public void onStartTrackingTouch(android.widget.SeekBar b) {}
+                    @Override public void onStopTrackingTouch(android.widget.SeekBar b) { applyFrameGen(); }
+                });
+            }
+
+            // Advanced configuration, mirroring the reference build's frame-generation surface.
+            if (!fgAdvancedBuilt && fgCard != null) {
+                fgAdvancedBuilt = true;
+                addFgLabel(fgCard, getString(R.string.sidebar_fg_advanced), 16);
+
+                final android.widget.TextView tvRenderScale =
+                    addFgLabel(fgCard, fgRenderScaleLabel(frameGenRenderScalePct), 10);
+                addFgSeekBar(fgCard, 60, frameGenRenderScalePct - 40,
+                        new android.widget.SeekBar.OnSeekBarChangeListener() {
+                    @Override public void onProgressChanged(android.widget.SeekBar b, int p, boolean fromUser) {
+                        frameGenRenderScalePct = 40 + p;
+                        tvRenderScale.setText(fgRenderScaleLabel(frameGenRenderScalePct));
+                        if (fromUser) applyFrameGen();
+                    }
+                    @Override public void onStartTrackingTouch(android.widget.SeekBar b) {}
+                    @Override public void onStopTrackingTouch(android.widget.SeekBar b) { applyFrameGen(); }
+                });
+
+                final android.widget.TextView tvTarget =
+                    addFgLabel(fgCard, fgTargetLabel(frameGenTargetFps), 10);
+                addFgSeekBar(fgCard, 120, frameGenTargetFps,
+                        new android.widget.SeekBar.OnSeekBarChangeListener() {
+                    @Override public void onProgressChanged(android.widget.SeekBar b, int p, boolean fromUser) {
+                        frameGenTargetFps = p;
+                        tvTarget.setText(fgTargetLabel(p));
+                        if (fromUser) applyFrameGen();
+                    }
+                    @Override public void onStartTrackingTouch(android.widget.SeekBar b) {}
+                    @Override public void onStopTrackingTouch(android.widget.SeekBar b) { applyFrameGen(); }
+                });
+
+                final android.widget.TextView tvFloor =
+                    addFgLabel(fgCard, fgFloorLabel(frameGenFloorFps), 10);
+                addFgSeekBar(fgCard, 60, frameGenFloorFps,
+                        new android.widget.SeekBar.OnSeekBarChangeListener() {
+                    @Override public void onProgressChanged(android.widget.SeekBar b, int p, boolean fromUser) {
+                        frameGenFloorFps = p;
+                        tvFloor.setText(fgFloorLabel(p));
+                        if (fromUser) applyFrameGen();
+                    }
+                    @Override public void onStartTrackingTouch(android.widget.SeekBar b) {}
+                    @Override public void onStopTrackingTouch(android.widget.SeekBar b) { applyFrameGen(); }
+                });
+
+                addFgCheck(fgCard, getString(R.string.sidebar_fg_artifact), frameGenArtifactClean,
+                        new android.widget.CompoundButton.OnCheckedChangeListener() {
+                    @Override public void onCheckedChanged(android.widget.CompoundButton b, boolean c) {
+                        frameGenArtifactClean = c;
+                        applyFrameGen();
+                    }
+                });
+                addFgCheck(fgCard, getString(R.string.sidebar_fg_post), frameGenPostProcess,
+                        new android.widget.CompoundButton.OnCheckedChangeListener() {
+                    @Override public void onCheckedChanged(android.widget.CompoundButton b, boolean c) {
+                        frameGenPostProcess = c;
+                        applyFrameGen();
+                    }
+                });
+                addFgCheck(fgCard, getString(R.string.sidebar_fg_perf), frameGenPerfMode,
+                        new android.widget.CompoundButton.OnCheckedChangeListener() {
+                    @Override public void onCheckedChanged(android.widget.CompoundButton b, boolean c) {
+                        frameGenPerfMode = c;
+                        applyFrameGen();
+                    }
+                });
+                addFgCheck(fgCard, getString(R.string.sidebar_fg_fp16), frameGenFp16,
+                        new android.widget.CompoundButton.OnCheckedChangeListener() {
+                    @Override public void onCheckedChanged(android.widget.CompoundButton b, boolean c) {
+                        frameGenFp16 = c;
+                        applyFrameGen();
+                    }
+                });
+                addFgCheck(fgCard, getString(R.string.sidebar_fg_heatmap), frameGenHeatmap,
+                        new android.widget.CompoundButton.OnCheckedChangeListener() {
+                    @Override public void onCheckedChanged(android.widget.CompoundButton b, boolean c) {
+                        frameGenHeatmap = c;
+                        applyFrameGen();
+                    }
+                });
+            }
             startFrameGenHudFeed();
         }
     }
@@ -2097,6 +2291,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (!(xServerView instanceof VulkanXServerView)) return;
         VulkanXServerView v = (VulkanXServerView) xServerView;
         v.setFrameGenMultiplier(frameGenMultiplier);
+        v.setFrameGenStrength(frameGenStrength);
+        v.setFrameGenMotionFloor(frameGenMotionFloor);
         float refresh = 60f;
         android.view.Display display = getWindowManager().getDefaultDisplay();
         if (display != null) {
@@ -2104,7 +2300,116 @@ public class XServerDisplayActivity extends AppCompatActivity {
             if (r > 1f) refresh = r;
         }
         boolean enabled = frameGenQualityPos > 0;
+        // Enable first: that is what creates the DIS instance.  The specific knobs are pushed
+        // afterwards so they win over the coarse preset setFrameGenEnabled passes in.
         v.setFrameGenEnabled(enabled, FG_MIN_SIDE[frameGenQualityPos], 0, refresh);
+
+        // Full configuration surface.  quality presets the flow resolution and perf mode, so it
+        // goes first; the explicit flow scale and perf-mode flag then override it.
+        v.setFGQualityMode(Math.max(0, frameGenQualityPos - 1));
+        v.setFGFlowScale(FG_MIN_SIDE[frameGenQualityPos]);
+        v.setFGRenderScale(frameGenRenderScalePct / 100f);
+        v.setFGTargetFps(frameGenTargetFps);
+        v.setFGFloorFps(frameGenFloorFps);
+        v.setFGMaxMult(frameGenMultiplier);
+        v.setFGGeneratedFrameCount(Math.max(1, frameGenMultiplier - 1));
+        v.setFGPostProcess(frameGenPostProcess);
+        v.setFGArtifactClean(frameGenArtifactClean);
+        v.setFGPerfMode(frameGenPerfMode);
+        v.setFGFp16(frameGenFp16);
+        v.setFGHeatmap(frameGenHeatmap);
+        v.setFGCzCarryPct(90);
+        v.setFGCzMax(frameGenMultiplier);
+    }
+
+    /** "Target FPS" plus the value; 0 means follow the panel, which is what makes generation
+     * actually happen on a 120 Hz panel. */
+    private String fgTargetLabel(int fps) {
+        return getString(R.string.sidebar_fg_target_fps)
+             + (fps > 0 ? " " + fps : " (" + getString(R.string.sidebar_fg_auto) + ")");
+    }
+
+    /** "插帧强度 85%" — the slider position is the percentage, shown verbatim. */
+    private String fgStrengthLabel(int pct) {
+        return getString(R.string.sidebar_framegen_strength) + "  " + pct + "%";
+    }
+
+    /** "拖影抑制 75%" — the slider is the suppression amount (motionFloor is 1 - value). */
+    private String fgSuppressLabel(int pct) {
+        return getString(R.string.sidebar_framegen_suppression) + "  " + pct + "%";
+    }
+
+    /** "渲染倍率 80%" — the slider runs 0..60 and maps to 40..100 percent. */
+    private String fgRenderScaleLabel(int pct) {
+        return getString(R.string.sidebar_fg_render_scale) + "  " + pct + "%";
+    }
+
+    /** "最低帧率 30" — 0 means the floor is disabled. */
+    private String fgFloorLabel(int fps) {
+        return getString(R.string.sidebar_fg_floor_fps) + "  "
+             + (fps > 0 ? String.valueOf(fps) : getString(R.string.sidebar_fg_off));
+    }
+
+    /** Sidebar label colour, matching the XML rows that read the sidebar theme attribute. */
+    private int sidebarLabelColor() {
+        int color = 0xFFFFFFFF;
+        android.util.TypedValue tv = new android.util.TypedValue();
+        if (getTheme().resolveAttribute(R.attr.ingameSidebarOnSurface, tv, true)) {
+            if (tv.type >= android.util.TypedValue.TYPE_FIRST_COLOR_INT
+                    && tv.type <= android.util.TypedValue.TYPE_LAST_COLOR_INT) {
+                color = tv.data;
+            } else if (tv.resourceId != 0) {
+                try { color = getResources().getColor(tv.resourceId, getTheme()); } catch (Exception ignored) {}
+            }
+        }
+        return color;
+    }
+
+    private android.widget.TextView addFgLabel(android.view.ViewGroup card, String text, int topMargin) {
+        android.widget.TextView label = new android.widget.TextView(this);
+        label.setText(text);
+        label.setTextColor(sidebarLabelColor());
+        label.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 13);
+        android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = topMargin;
+        card.addView(label, lp);
+        return label;
+    }
+
+    private android.widget.SeekBar addFgSeekBar(android.view.ViewGroup card, int max, int progress,
+            android.widget.SeekBar.OnSeekBarChangeListener l) {
+        android.widget.SeekBar bar = new android.widget.SeekBar(this);
+        bar.setMax(max);
+        bar.setProgress(progress);
+        // Same fix as IngameSidebarThemeLayout.alignSeekBars(): zero the internal horizontal
+        // padding and stop the parent clipping, or the thumb is cut off at both ends.
+        bar.setPadding(0, bar.getPaddingTop(), 0, bar.getPaddingBottom());
+        card.setClipChildren(false);
+        card.setClipToPadding(false);
+        bar.setOnSeekBarChangeListener(l);
+        android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = 4;
+        card.addView(bar, lp);
+        return bar;
+    }
+
+    private void addFgCheck(android.view.ViewGroup card, String text, boolean checked,
+            android.widget.CompoundButton.OnCheckedChangeListener l) {
+        android.widget.CheckBox box = new android.widget.CheckBox(this);
+        box.setText(text);
+        box.setTextColor(sidebarLabelColor());
+        box.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 13);
+        box.setChecked(checked);
+        box.setOnCheckedChangeListener(l);
+        android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = 6;
+        card.addView(box, lp);
     }
 
     /**
@@ -2348,9 +2653,25 @@ public class XServerDisplayActivity extends AppCompatActivity {
         for (int id : android.view.InputDevice.getDeviceIds()) {
             android.view.InputDevice device = android.view.InputDevice.getDevice(id);
             if (device == null) continue;
+            // Skip virtual / phantom devices. Several ROMs expose a GAMEPAD-sourced device that is
+            // NOT a real controller; treating it as physical suppresses the built-in virtual
+            // gamepad on first launch.  On the MIUI build this shows up as "uinput-xiaomi"
+            // (KEYBOARD|GAMEPAD), injected from userspace, and InputDevice.isVirtual() does not
+            // flag it -- hence the name check as well.
+            if (device.isVirtual()) continue;
+            String deviceName = device.getName();
+            if (deviceName != null) {
+                String lower = deviceName.toLowerCase(java.util.Locale.ROOT);
+                if (lower.startsWith("uinput-") || lower.contains("virtual")
+                        || lower.contains("xiaomi game") || lower.contains("game turbo")) {
+                    continue;
+                }
+            }
             int sources = device.getSources();
             if ((sources & android.view.InputDevice.SOURCE_GAMEPAD) == android.view.InputDevice.SOURCE_GAMEPAD
                     || (sources & android.view.InputDevice.SOURCE_JOYSTICK) == android.view.InputDevice.SOURCE_JOYSTICK) {
+                Log.d("XServerDisplayActivity", "Physical gamepad detected: \"" + deviceName
+                        + "\" sources=0x" + Integer.toHexString(sources));
                 return true;
             }
         }
@@ -2445,6 +2766,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     private void showInputControls(ControlsProfile profile) {
+        Log.d("XServerDisplayActivity", "Showing virtual gamepad, profile="
+                + (profile != null ? profile.getName() : "null"));
         if (timeoutHandler != null && hideControlsRunnable != null) {
             timeoutHandler.removeCallbacks(hideControlsRunnable);
         }

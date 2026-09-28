@@ -388,6 +388,152 @@ Java_com_winlator_cmod_widget_VulkanXServerView_nativeSetFrameGenConfig(
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_widget_VulkanXServerView_nativeSetFrameGenStrength(
+    JNIEnv*, jobject, jlong handle, jfloat strength)
+{
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->setFrameGenStrength(strength);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_widget_VulkanXServerView_nativeSetFrameGenMotionFloor(
+    JNIEnv*, jobject, jlong handle, jfloat motionFloor)
+{
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->setFrameGenMotionFloor(motionFloor);
+}
+
+/* --- Full frame-generation configuration (Bionic parity) ---------------------------------- */
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_widget_VulkanXServerView_nativeSetFGQualityMode(
+    JNIEnv*, jobject, jlong handle, jint mode)
+{
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->setFGQualityMode((uint32_t)mode);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_widget_VulkanXServerView_nativeSetFGFlowScale(
+    JNIEnv*, jobject, jlong handle, jint scale)
+{
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->setFGFlowScale((uint32_t)scale);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_widget_VulkanXServerView_nativeSetFGRenderScale(
+    JNIEnv*, jobject, jlong handle, jfloat scale)
+{
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->setFGRenderScale(scale);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_widget_VulkanXServerView_nativeSetFGTargetFps(
+    JNIEnv*, jobject, jlong handle, jint fps)
+{
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->setFGTargetFps((uint32_t)fps);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_widget_VulkanXServerView_nativeSetFGFloorFps(
+    JNIEnv*, jobject, jlong handle, jint fps)
+{
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->setFGFloorFps((uint32_t)fps);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_widget_VulkanXServerView_nativeSetFGMaxMult(
+    JNIEnv*, jobject, jlong handle, jint mult)
+{
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->setFGMaxMult((uint32_t)mult);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_widget_VulkanXServerView_nativeSetFGGeneratedFrameCount(
+    JNIEnv*, jobject, jlong handle, jint count)
+{
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->setFGGeneratedFrameCount((uint32_t)count);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_widget_VulkanXServerView_nativeSetFGPostProcess(
+    JNIEnv*, jobject, jlong handle, jboolean on)
+{
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->setFGPostProcess(on == JNI_TRUE);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_widget_VulkanXServerView_nativeSetFGArtifactClean(
+    JNIEnv*, jobject, jlong handle, jboolean on)
+{
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->setFGArtifactClean(on == JNI_TRUE);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_widget_VulkanXServerView_nativeSetFGPerfMode(
+    JNIEnv*, jobject, jlong handle, jboolean on)
+{
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->setFGPerfMode(on == JNI_TRUE);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_widget_VulkanXServerView_nativeSetFGFp16(
+    JNIEnv*, jobject, jlong handle, jboolean on)
+{
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->setFGFp16(on == JNI_TRUE);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_widget_VulkanXServerView_nativeSetFGHeatmap(
+    JNIEnv*, jobject, jlong handle, jboolean on)
+{
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->setFGHeatmap(on == JNI_TRUE);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_widget_VulkanXServerView_nativeSetFGCzCarryPct(
+    JNIEnv*, jobject, jlong handle, jint pct)
+{
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->setFGCzCarryPct((uint32_t)pct);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_widget_VulkanXServerView_nativeSetFGCzMax(
+    JNIEnv*, jobject, jlong handle, jint czMax)
+{
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->setFGCzMax((uint32_t)czMax);
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_winlator_cmod_widget_VulkanXServerView_nativeIsFGActive(
+    JNIEnv*, jobject, jlong handle)
+{
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    return (r && r->isFGActive()) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_winlator_cmod_widget_VulkanXServerView_nativeLogFGStageTimes(
+    JNIEnv*, jobject, jlong handle)
+{
+    auto* r = reinterpret_cast<VulkanRendererContext*>(handle);
+    if (r) r->logFGStageTimes();
+}
+
+extern "C" JNIEXPORT void JNICALL
 Java_com_winlator_cmod_widget_VulkanXServerView_nativeSetFrameGenDebugFlow(
     JNIEnv*, jobject, jlong handle, jboolean on)
 {

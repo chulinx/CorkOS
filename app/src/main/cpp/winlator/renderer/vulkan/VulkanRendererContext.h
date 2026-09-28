@@ -350,6 +350,30 @@ public:
     uint32_t    frameGenMultiplier  = 2;
     uint32_t    frameGenTargetFps   = 0;      // 0 = follow the panel refresh rate
     float       frameGenRefreshRate = 60.0f;
+    // How much of the interpolated result to keep.  1.0 = pure optical-flow interpolation
+    // (original behaviour, smoothest, most ghosting); lower values bleed the nearest real
+    // frame in, which visibly reduces trailing on disoccluded/fast-moving content at the
+    // cost of some temporal smoothing.
+    float       frameGenStrength    = 1.0f;
+    // Ghosting suppression: fraction of frameGenStrength that survives where the adaptive
+    // untrustworthy-interpolation signal maxes out. 1.0 = no adaptive suppression; lower
+    // values trade smoothness on fast motion for much less trailing.
+    float       frameGenMotionFloor = 0.25f;
+    // Full configuration surface, mirroring the Bionic build.  These are stored here and pushed
+    // into the DIS instance on creation and on every change, so a setter may be called at any
+    // time -- including before frame generation has ever been enabled.
+    uint32_t    frameGenQualityMode   = 2;      // 0 perf / 1 stable / 2 quality
+    float       frameGenRenderScale   = 1.0f;
+    uint32_t    frameGenFloorFps      = 0;
+    uint32_t    frameGenMaxMult       = 4;
+    uint32_t    frameGenGenerated     = 2;
+    bool        frameGenPostProcess   = true;
+    bool        frameGenArtifactClean = true;
+    bool        frameGenPerfMode      = false;
+    bool        frameGenFp16          = true;
+    bool        frameGenHeatmap       = false;
+    uint32_t    frameGenCzCarryPct    = 90;
+    uint32_t    frameGenCzMax         = 3;
     VkrDis*     dis = nullptr;
     VkImage        composeImage      = VK_NULL_HANDLE;
     VkDeviceMemory composeMemory     = VK_NULL_HANDLE;
@@ -387,6 +411,28 @@ public:
 
     void setFrameGenEnabled(bool enabled);
     void setFrameGenConfig(uint32_t flowMinSide, uint32_t targetFps, float refreshRate);
+    void setFrameGenStrength(float strength);
+    void setFrameGenMotionFloor(float motionFloor);
+    // Full configuration surface (Bionic parity).  Each stores the value and applies it to the
+    // live DIS instance when there is one.
+    void setFGQualityMode(uint32_t mode);
+    void setFGFlowScale(uint32_t flowMinSide);
+    void setFGRenderScale(float scale);
+    void setFGTargetFps(uint32_t fps);
+    void setFGFloorFps(uint32_t fps);
+    void setFGMaxMult(uint32_t mult);
+    void setFGGeneratedFrameCount(uint32_t count);
+    void setFGPostProcess(bool on);
+    void setFGArtifactClean(bool on);
+    void setFGPerfMode(bool on);
+    void setFGFp16(bool on);
+    void setFGHeatmap(bool on);
+    void setFGCzCarryPct(uint32_t pct);
+    void setFGCzMax(uint32_t czMax);
+    bool isFGActive() const;
+    void logFGStageTimes();
+    // Pushes every stored knob into `dis`.  Called right after DIS is created.
+    void applyFrameGenConfig();
     void setFrameGenDebugFlow(bool on);
     void destroyFrameGenTargets();
     bool ensureFrameGen(uint32_t width, uint32_t height);

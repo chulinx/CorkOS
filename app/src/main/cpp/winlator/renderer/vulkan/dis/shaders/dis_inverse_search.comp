@@ -3,7 +3,7 @@
 precision highp float;
 precision highp int;
 
-#define DIS_INVERSE_ITERS 8
+#define DIS_INVERSE_ITERS 14
 
 #define DIS_MAX_MATCH_RMS 36.0
 
@@ -79,7 +79,7 @@ void main() {
     ivec2 sparseSize = imageSize(sparseFlowMap);
     if (pixSparse.x >= sparseSize.x || pixSparse.y >= sparseSize.y) return;
 
-    ivec2 pix = pixSparse * 3;
+    ivec2 pix = pixSparse * 2;   // matches DIS_PATCH_STRIDE
     ivec2 denseSize = textureSize(lastLumaMap, 0);
     ivec2 denseMax = denseSize - 1;
 

@@ -21,6 +21,7 @@
 #include "shaders/dis_propagate_comp.spv.h"
 #include "shaders/dis_densify_comp.spv.h"
 #include "shaders/dis_interpolate_comp.spv.h"
+#include "shaders/dis_sharpen_comp.spv.h"
 #include "shaders/dis_vr_prep_comp.spv.h"
 #include "shaders/dis_vr_d1_comp.spv.h"
 #include "shaders/dis_vr_d2_comp.spv.h"
@@ -41,12 +42,44 @@
 #define DIS_LOGW(...) __android_log_print(ANDROID_LOG_WARN, "VkrDis", __VA_ARGS__)
 
 #define DIS_LOCAL_SIZE 8u
-#define DIS_PATCH_STRIDE 3u
+/* Spacing between the sparse flow estimates, in dense pixels.  Every shader that maps between the
+ * sparse and dense grids hardcodes this number (dis_inverse_search, dis_propagate, dis_densify),
+ * so changing it here alone desynchronises them and corrupts the flow -- change all four together.
+ * 2 instead of 3 puts 2.25x more patches on the frame, which is a real accuracy gain because the
+ * flow the interpolation uses is upsampled from this grid. */
+#define DIS_PATCH_STRIDE 2u
 #define DIS_MIN_EXTENT 16u
 
 #define DIS_DEFAULT_FLOW_MIN_SIDE 180u
 #define DIS_FLOW_MIN_SIDE_FLOOR 64u
 #define DIS_FLOW_MIN_SIDE_CEIL 1080u
+
+/* Fraction of the requested interpolation strength that survives where the adaptive
+ * "this interpolation is untrustworthy" signal maxes out. Lower = more ghosting suppression
+ * and less temporal smoothing on fast motion. This is the default; the UI overrides it. */
+#define DIS_DEFAULT_MOTION_FLOOR 0.25f
+
+/* Quality presets.  The mode selects the flow working resolution; an explicit flow-scale setter
+ * overrides the preset.  These mirror the three quality steps the Bionic build offers. */
+#define DIS_QUALITY_MODES 3u
+static const uint32_t DIS_QUALITY_FLOW_SIDE[DIS_QUALITY_MODES] = { 128u, 180u, 252u };
+
+/* Lower bound on the generation render scale, so the work images cannot collapse to nothing. */
+#define DIS_RENDER_SCALE_MIN 0.4f
+
+/* Post-process unsharp-mask strength.  Interpolation averages two warped samples, so generated
+ * frames read slightly soft; a modest boost restores the perceived detail. */
+#define DIS_SHARPEN_AMOUNT 0.35f
+
+/* Defaults for the full configuration, matching the Bionic build. */
+#define DIS_DEFAULT_QUALITY_MODE 2u
+#define DIS_DEFAULT_RENDER_SCALE 1.0f
+#define DIS_DEFAULT_FLOOR_FPS 0u
+/* Bionic ships 3; CorkOS keeps 4 so the existing x4 option is not silently capped. */
+#define DIS_DEFAULT_MAX_MULT (VKR_DIS_MAX_GENERATIONS + 1u)
+#define DIS_DEFAULT_GENERATED_FRAMES 2u
+#define DIS_DEFAULT_CZ_CARRY_PCT 90u
+#define DIS_DEFAULT_CZ_MAX 3u
 #define DIS_MAX_LEVELS 8u
 #define DIS_MAX_DESCRIPTOR_WRITES 256u
 
@@ -124,6 +157,28 @@ struct VkrDis {
     bool formats_audited;
     bool manual_flow_filter;
     bool debug_flow;
+    float framegen_strength;
+    float framegen_motion_floor;
+
+    /* Full frame-generation configuration (mirrors the Bionic/NeoMirror surface). */
+    uint32_t quality_mode;      /* 0 = performance, 1 = stable, 2 = quality */
+    float    render_scale;      /* fraction of the output the generation runs at */
+    uint32_t floor_fps;         /* skip generation while the source rate is below this */
+    uint32_t max_mult;          /* output multiplier cap */
+    uint32_t generated_frames;  /* frames inserted per real frame when not rate-driven */
+    bool     post_process;      /* sharpen generated frames */
+    bool     artifact_clean;    /* repair unreliable flow before interpolating */
+    bool     perf_mode;         /* reduced refinement pipeline */
+    bool     fp16;              /* 16-bit intermediates where supported */
+    bool     heatmap;           /* colourise the flow for debugging */
+    uint32_t cz_carry_pct;      /* pacing carry, percent of an unused budget */
+    uint32_t cz_max;            /* pacing carry cap */
+    bool     active;            /* produced output for the current configuration */
+
+    /* Per-stage timing diagnostics, nanoseconds.  Index 0 = flow estimation, 1 = refinement,
+     * 2 = interpolation, 3 = presentation copy.  Reset by vkr_dis_log_stage_times(). */
+    uint64_t stage_ns[4];
+    uint64_t stage_frames;
 
     DisImage color[DIS_SLOTS];
     DisImage flow_color[DIS_SLOTS];
@@ -134,6 +189,8 @@ struct VkrDis {
     DisImage flow_sparse_b[DIS_MAX_LEVELS];
     DisImage flow_dense;
     DisImage interp_out;
+    /* Post-process target: the sharpened interpolated frame.  Only built when post_process is on. */
+    DisImage interp_sharp;
 
     DisImage vr_prep;
     DisImage vr_d1;
@@ -152,6 +209,7 @@ struct VkrDis {
     VkImageView view_sparse_b[DIS_MAX_LEVELS];
     VkImageView view_dense[DIS_MAX_LEVELS];
     VkImageView view_interp_out;
+    VkImageView view_interp_sharp;
     VkImageView view_vr_prep[DIS_MAX_LEVELS];
     VkImageView view_vr_d1[DIS_MAX_LEVELS];
     VkImageView view_vr_d2[DIS_MAX_LEVELS];
@@ -173,6 +231,7 @@ struct VkrDis {
     VkDescriptorSet prop_ab_sets[DIS_SLOTS][DIS_MAX_LEVELS];
     VkDescriptorSet prop_ba_sets[DIS_SLOTS][DIS_MAX_LEVELS];
     VkDescriptorSet interp_sets[DIS_SLOTS];
+    VkDescriptorSet sharpen_sets[DIS_SLOTS];
 
     VkDescriptorSetLayout vr_set_layout;
     VkPipelineLayout vr_pipeline_layout;
@@ -191,6 +250,7 @@ struct VkrDis {
     DisPass pass_propagate;
     DisPass pass_densify;
     DisPass pass_interp;
+    DisPass pass_sharpen;
     DisPass pass_vr_prep;
     DisPass pass_vr_d1;
     DisPass pass_vr_d2;
@@ -240,7 +300,14 @@ typedef struct {
 typedef struct {
     float t;
     int debugMode;
+    float strength;
+    float motionFloor;
+    int clean;
 } DisInterpPC;
+
+typedef struct {
+    float amount;
+} DisSharpenPC;
 
 typedef struct {
     float alpha2;
@@ -319,6 +386,7 @@ static uint32_t dis_collect_images(VkrDis* d, DisImage** out, uint32_t cap) {
     }
     DIS_PUSH(&d->flow_dense);
     DIS_PUSH(&d->interp_out);
+    DIS_PUSH(&d->interp_sharp);
     DIS_PUSH(&d->vr_prep);
     DIS_PUSH(&d->vr_d1);
     DIS_PUSH(&d->vr_d2);
@@ -371,7 +439,16 @@ static VkFormat dis_pick_luma_format(VkrDis* d) {
     const VkFormatFeatureFlags need = VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT |
                                       VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT |
                                       VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT;
-    const VkFormat candidates[2] = {VK_FORMAT_R16_SFLOAT, VK_FORMAT_R32_SFLOAT};
+    /* Half precision prefers the 16-bit luminance plane (half the bandwidth); turning it off
+     * forces the 32-bit plane.  Both still fall back to whatever the device supports. */
+    VkFormat candidates[2];
+    if (d->fp16) {
+        candidates[0] = VK_FORMAT_R16_SFLOAT;
+        candidates[1] = VK_FORMAT_R32_SFLOAT;
+    } else {
+        candidates[0] = VK_FORMAT_R32_SFLOAT;
+        candidates[1] = VK_FORMAT_R16_SFLOAT;
+    }
     for (uint32_t i = 0; i < 2; i++) {
         VkFormatProperties fp;
         memset(&fp, 0, sizeof(fp));
@@ -449,9 +526,61 @@ static void dis_destroy_view(VkrDis* d, VkImageView* view) {
     *view = VK_NULL_HANDLE;
 }
 
-static VkPipeline dis_create_compute_pipeline_with_layout(VkrDis* d, const uint32_t* code,
+/*
+ * Optional runtime shader override.
+ *
+ * A tuned shader can be dropped at /sdcard/Winlator/shaders/<name>.spv and it is used in place of
+ * the copy compiled into the APK.  Iterating on a shader then costs a ~20 KB file push plus a game
+ * restart, instead of rebuilding and reinstalling a ~570 MB APK.
+ *
+ * The file is only accepted when it is a plausible SPIR-V module, so a truncated or unrelated file
+ * falls back to the built-in shader rather than taking frame generation down with it.  The buffer
+ * is deliberately never freed: it is handed to Vulkan for the lifetime of the process.
+ */
+static const uint32_t* dis_shader_code(const char* name, const uint32_t* builtin,
+                                       size_t builtin_size, size_t* out_size) {
+    *out_size = builtin_size;
+    if (name == NULL) return builtin;
+
+    char path[256];
+    snprintf(path, sizeof(path), "/sdcard/Winlator/shaders/%s.spv", name);
+    FILE* f = fopen(path, "rb");
+    if (f == NULL) return builtin;
+
+    long len = 0;
+    if (fseek(f, 0, SEEK_END) == 0) len = ftell(f);
+    /* 20 bytes is the smallest legal module header; the cap keeps a huge file from being read. */
+    if (len < 20 || (len % 4) != 0 || len > (long)(4u << 20)) {
+        DIS_LOGW("shader override ignored (bad size %ld): %s", len, path);
+        fclose(f);
+        return builtin;
+    }
+    rewind(f);
+
+    uint32_t* buf = (uint32_t*)malloc((size_t)len);
+    if (buf == NULL) {
+        fclose(f);
+        return builtin;
+    }
+    if (fread(buf, 1, (size_t)len, f) != (size_t)len || buf[0] != 0x07230203u) {
+        DIS_LOGW("shader override ignored (not SPIR-V): %s", path);
+        free(buf);
+        fclose(f);
+        return builtin;
+    }
+    fclose(f);
+
+    DIS_LOGI("shader override in use: %s (%ld bytes)", path, len);
+    *out_size = (size_t)len;
+    return buf;
+}
+
+static VkPipeline dis_create_compute_pipeline_with_layout(VkrDis* d, const char* name,
+                                                           const uint32_t* code,
                                                            size_t code_size, VkPipelineLayout layout,
                                                            const VkSpecializationInfo* spec) {
+    code = dis_shader_code(name, code, code_size, &code_size);
+
     VkShaderModuleCreateInfo smi;
     memset(&smi, 0, sizeof(smi));
     smi.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -480,8 +609,10 @@ static VkPipeline dis_create_compute_pipeline_with_layout(VkrDis* d, const uint3
     return res == VK_SUCCESS ? pipeline : VK_NULL_HANDLE;
 }
 
-static VkPipeline dis_create_compute_pipeline(VkrDis* d, const uint32_t* code, size_t code_size) {
-    return dis_create_compute_pipeline_with_layout(d, code, code_size, d->pipeline_layout, NULL);
+static VkPipeline dis_create_compute_pipeline(VkrDis* d, const char* name, const uint32_t* code,
+                                              size_t code_size) {
+    return dis_create_compute_pipeline_with_layout(d, name, code, code_size,
+                                                   d->pipeline_layout, NULL);
 }
 
 static bool dis_create_pipelines(VkrDis* d) {
@@ -524,8 +655,12 @@ static bool dis_create_pipelines(VkrDis* d) {
         return false;
     }
 
+    /* Per-level shared sets, plus one interpolation set and one post-process (sharpen) set per
+     * slot.  Every set allocated in dis_allocate_sets() must be counted here or the pool runs out
+     * and frame generation silently stays off (VK_ERROR_OUT_OF_POOL_MEMORY). */
     const uint32_t shared_sets = DIS_SLOTS * DIS_MAX_LEVELS * DIS_SHARED_SETS_PER_LEVEL
-                               + DIS_SLOTS;
+                               + DIS_SLOTS   // interpolation
+                               + DIS_SLOTS;  // post-process sharpen
     const uint32_t vr_sets = (DIS_SLOTS
                            + DIS_VR_SHARED_SETS) * DIS_MAX_LEVELS;
     const uint32_t total_sets = shared_sets + vr_sets;
@@ -590,12 +725,12 @@ static bool dis_create_pipelines(VkrDis* d) {
     }
 
     d->pass_luma.pipeline = d->luma_format == VK_FORMAT_R16_SFLOAT
-        ? dis_create_compute_pipeline(d, dis_luma_r16_comp, dis_luma_r16_comp_size)
-        : dis_create_compute_pipeline(d, dis_luma_r32_comp, dis_luma_r32_comp_size);
-    d->pass_gradient.pipeline = dis_create_compute_pipeline(d, dis_gradient_comp, dis_gradient_comp_size);
-    d->pass_inverse.pipeline = dis_create_compute_pipeline(d, dis_inverse_search_comp, dis_inverse_search_comp_size);
-    d->pass_propagate.pipeline = dis_create_compute_pipeline(d, dis_propagate_comp, dis_propagate_comp_size);
-    d->pass_densify.pipeline = dis_create_compute_pipeline(d, dis_densify_comp, dis_densify_comp_size);
+        ? dis_create_compute_pipeline(d, "dis_luma_r16", dis_luma_r16_comp, dis_luma_r16_comp_size)
+        : dis_create_compute_pipeline(d, "dis_luma_r32", dis_luma_r32_comp, dis_luma_r32_comp_size);
+    d->pass_gradient.pipeline = dis_create_compute_pipeline(d, "dis_gradient", dis_gradient_comp, dis_gradient_comp_size);
+    d->pass_inverse.pipeline = dis_create_compute_pipeline(d, "dis_inverse_search", dis_inverse_search_comp, dis_inverse_search_comp_size);
+    d->pass_propagate.pipeline = dis_create_compute_pipeline(d, "dis_propagate", dis_propagate_comp, dis_propagate_comp_size);
+    d->pass_densify.pipeline = dis_create_compute_pipeline(d, "dis_densify", dis_densify_comp, dis_densify_comp_size);
     const VkBool32 manual_filter = d->manual_flow_filter ? 1u : 0u;
     VkSpecializationMapEntry spec_entry;
     memset(&spec_entry, 0, sizeof(spec_entry));
@@ -609,18 +744,22 @@ static bool dis_create_pipelines(VkrDis* d) {
     spec.dataSize = sizeof(manual_filter);
     spec.pData = &manual_filter;
     d->pass_interp.pipeline = dis_create_compute_pipeline_with_layout(
-        d, dis_interpolate_comp, dis_interpolate_comp_size, d->pipeline_layout, &spec);
+        d, "dis_interpolate", dis_interpolate_comp, dis_interpolate_comp_size,
+        d->pipeline_layout, &spec);
 
-    d->pass_vr_prep.pipeline = dis_create_compute_pipeline_with_layout(d, dis_vr_prep_comp, dis_vr_prep_comp_size, d->vr_pipeline_layout, NULL);
-    d->pass_vr_d1.pipeline = dis_create_compute_pipeline_with_layout(d, dis_vr_d1_comp, dis_vr_d1_comp_size, d->vr_pipeline_layout, NULL);
-    d->pass_vr_d2.pipeline = dis_create_compute_pipeline_with_layout(d, dis_vr_d2_comp, dis_vr_d2_comp_size, d->vr_pipeline_layout, NULL);
-    d->pass_vr_w.pipeline = dis_create_compute_pipeline_with_layout(d, dis_vr_w_comp, dis_vr_w_comp_size, d->vr_pipeline_layout, NULL);
-    d->pass_vr_coef.pipeline = dis_create_compute_pipeline_with_layout(d, dis_vr_coef_comp, dis_vr_coef_comp_size, d->vr_pipeline_layout, NULL);
-    d->pass_vr_sor.pipeline = dis_create_compute_pipeline_with_layout(d, dis_vr_sor_comp, dis_vr_sor_comp_size, d->vr_pipeline_layout, NULL);
-    d->pass_vr_add.pipeline = dis_create_compute_pipeline_with_layout(d, dis_vr_add_comp, dis_vr_add_comp_size, d->vr_pipeline_layout, NULL);
+    d->pass_sharpen.pipeline = dis_create_compute_pipeline_with_layout(
+        d, "dis_sharpen", dis_sharpen_comp, dis_sharpen_comp_size, d->pipeline_layout, NULL);
+
+    d->pass_vr_prep.pipeline = dis_create_compute_pipeline_with_layout(d, "dis_vr_prep", dis_vr_prep_comp, dis_vr_prep_comp_size, d->vr_pipeline_layout, NULL);
+    d->pass_vr_d1.pipeline = dis_create_compute_pipeline_with_layout(d, "dis_vr_d1", dis_vr_d1_comp, dis_vr_d1_comp_size, d->vr_pipeline_layout, NULL);
+    d->pass_vr_d2.pipeline = dis_create_compute_pipeline_with_layout(d, "dis_vr_d2", dis_vr_d2_comp, dis_vr_d2_comp_size, d->vr_pipeline_layout, NULL);
+    d->pass_vr_w.pipeline = dis_create_compute_pipeline_with_layout(d, "dis_vr_w", dis_vr_w_comp, dis_vr_w_comp_size, d->vr_pipeline_layout, NULL);
+    d->pass_vr_coef.pipeline = dis_create_compute_pipeline_with_layout(d, "dis_vr_coef", dis_vr_coef_comp, dis_vr_coef_comp_size, d->vr_pipeline_layout, NULL);
+    d->pass_vr_sor.pipeline = dis_create_compute_pipeline_with_layout(d, "dis_vr_sor", dis_vr_sor_comp, dis_vr_sor_comp_size, d->vr_pipeline_layout, NULL);
+    d->pass_vr_add.pipeline = dis_create_compute_pipeline_with_layout(d, "dis_vr_add", dis_vr_add_comp, dis_vr_add_comp_size, d->vr_pipeline_layout, NULL);
 
     if (!d->pass_gradient.pipeline || !d->pass_inverse.pipeline || !d->pass_propagate.pipeline ||
-        !d->pass_densify.pipeline || !d->pass_interp.pipeline ||
+        !d->pass_densify.pipeline || !d->pass_interp.pipeline || !d->pass_sharpen.pipeline ||
         !d->pass_vr_prep.pipeline || !d->pass_vr_d1.pipeline || !d->pass_vr_d2.pipeline ||
         !d->pass_vr_w.pipeline || !d->pass_vr_coef.pipeline || !d->pass_vr_sor.pipeline ||
         !d->pass_vr_add.pipeline) {
@@ -783,7 +922,26 @@ static void dis_write_all_descriptors(VkrDis* d) {
         dis_batch_sampled(d, &b, d->interp_sets[s], 0, d->view_color[prev], d->sampler);
         dis_batch_sampled(d, &b, d->interp_sets[s], 1, d->view_color[next], d->sampler);
         dis_batch_sampled(d, &b, d->interp_sets[s], 2, d->view_flow_refined[0], d->sampler);
+        /* Binding 3: a coarser level of the same pyramid, used as the repair reference.
+         *
+         * The finest level is the most detailed but also the least reliable -- when it locks onto
+         * the wrong match it does so in patches, and the neighbours are wrong in the same way, so
+         * no purely local test can see it.  A coarser level still describes the dominant motion of
+         * the region, which is what the interpolation should fall back to there.  The pyramid
+         * stores the same physical flow at every level (only the coordinate mapping differs, see
+         * dis_inverse_search.comp), so the value can be used as-is.  The layout already declares
+         * five sampler bindings and the pool already counts five, so this needs neither. */
+        dis_batch_sampled(d, &b, d->interp_sets[s], 3,
+                          d->view_flow_refined[L > 2u ? 2u : coarse], d->sampler);
         dis_batch_storage(d, &b, d->interp_sets[s], 5, d->view_interp_out);
+
+        /* Post-process: read the interpolated frame, write the sharpened one.  The layout declares
+         * five sampler bindings, so the four the shader does not use are pointed at the same
+         * source rather than left undefined. */
+        for (uint32_t bs = 0; bs < 5; bs++) {
+            dis_batch_sampled(d, &b, d->sharpen_sets[s], bs, d->view_interp_out, d->sampler);
+        }
+        dis_batch_storage(d, &b, d->sharpen_sets[s], 5, d->view_interp_sharp);
 
         for (uint32_t l = 0; l < L; l++) {
             dis_batch_sampled(d, &b, d->vr_prep_sets[s][l], 0, d->view_flow_color[prev][l], d->sampler);
@@ -837,6 +995,7 @@ static void dis_write_all_descriptors(VkrDis* d) {
 static void dis_destroy_views(VkrDis* d) {
     for (uint32_t s = 0; s < DIS_SLOTS; s++) dis_destroy_view(d, &d->view_color[s]);
     dis_destroy_view(d, &d->view_interp_out);
+    dis_destroy_view(d, &d->view_interp_sharp);
     for (uint32_t l = 0; l < DIS_MAX_LEVELS; l++) {
         dis_destroy_view(d, &d->view_vr_prep[l]);
         dis_destroy_view(d, &d->view_vr_d1[l]);
@@ -872,6 +1031,7 @@ static void dis_destroy_images(VkrDis* d) {
     }
     dis_destroy_image(d, &d->flow_dense);
     dis_destroy_image(d, &d->interp_out);
+    dis_destroy_image(d, &d->interp_sharp);
     dis_destroy_image(d, &d->vr_prep);
     dis_destroy_image(d, &d->vr_d1);
     dis_destroy_image(d, &d->vr_d2);
@@ -912,6 +1072,13 @@ static bool dis_create_resources(VkrDis* d, uint32_t w, uint32_t h, uint32_t ful
     if (!dis_create_image(d, &d->flow_dense, w, h, VK_FORMAT_R32G32_SFLOAT, L,
                           VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT)) return false;
     if (!dis_create_image(d, &d->interp_out, full_w, full_h, VK_FORMAT_R8G8B8A8_UNORM, 1,
+                          VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+                          VK_IMAGE_USAGE_SAMPLED_BIT)) {
+        return false;
+    }
+    /* Post-process target.  Always allocated so the layout priming and descriptor writing stay
+     * uniform; it is only ever written when post_process is enabled. */
+    if (!dis_create_image(d, &d->interp_sharp, full_w, full_h, VK_FORMAT_R8G8B8A8_UNORM, 1,
                           VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT)) {
         return false;
     }
@@ -960,6 +1127,7 @@ static bool dis_create_resources(VkrDis* d, uint32_t w, uint32_t h, uint32_t ful
         if (!dis_create_view(d, d->flow_refined.image, VK_FORMAT_R32G32_SFLOAT, l, 1, &d->view_flow_refined[l])) return false;
     }
     if (!dis_create_view(d, d->interp_out.image, VK_FORMAT_R8G8B8A8_UNORM, 0, 1, &d->view_interp_out)) return false;
+    if (!dis_create_view(d, d->interp_sharp.image, VK_FORMAT_R8G8B8A8_UNORM, 0, 1, &d->view_interp_sharp)) return false;
 
     vkr_dis_reset(d);
     dis_write_all_descriptors(d);
@@ -998,6 +1166,7 @@ static bool dis_allocate_sets(VkrDis* d) {
             d->luma_sets[s][l] = sets[5];
         }
         if (!dis_alloc(d, d->set_layout, 1, &d->interp_sets[s])) return false;
+        if (!dis_alloc(d, d->set_layout, 1, &d->sharpen_sets[s])) return false;
         for (uint32_t l = 0; l < DIS_MAX_LEVELS; l++) {
             if (!dis_alloc(d, d->vr_set_layout, 1, &d->vr_prep_sets[s][l])) return false;
         }
@@ -1168,6 +1337,19 @@ VkrDis* vkr_dis_create(VkDevice device, VkPhysicalDevice physical_device) {
     d->target_fps = 0;
     d->refresh_rate = 0.0f;
     d->plan_log_gen = -1;
+    d->framegen_strength = 1.0f;
+    d->framegen_motion_floor = DIS_DEFAULT_MOTION_FLOOR;
+    d->quality_mode = DIS_DEFAULT_QUALITY_MODE;
+    d->render_scale = DIS_DEFAULT_RENDER_SCALE;
+    d->floor_fps = DIS_DEFAULT_FLOOR_FPS;
+    d->max_mult = DIS_DEFAULT_MAX_MULT;
+    d->generated_frames = DIS_DEFAULT_GENERATED_FRAMES;
+    d->cz_carry_pct = DIS_DEFAULT_CZ_CARRY_PCT;
+    d->cz_max = DIS_DEFAULT_CZ_MAX;
+    d->post_process = true;
+    d->artifact_clean = true;
+    d->fp16 = true;
+    /* perf_mode and heatmap default to off via calloc. */
     vkd.GetPhysicalDeviceMemoryProperties(physical_device, &d->mem_props);
     d->luma_format = dis_pick_luma_format(d);
     if (!dis_audit_formats(d)) {
@@ -1230,6 +1412,123 @@ void vkr_dis_set_debug_flow(VkrDis* d, bool debug_flow) {
     d->debug_flow = debug_flow;
 }
 
+void vkr_dis_set_strength(VkrDis* d, float strength) {
+    if (!d) return;
+    if (strength < 0.0f) strength = 0.0f;
+    if (strength > 1.0f) strength = 1.0f;
+    d->framegen_strength = strength;
+}
+
+void vkr_dis_set_motion_floor(VkrDis* d, float motion_floor) {
+    if (!d) return;
+    if (motion_floor < 0.0f) motion_floor = 0.0f;
+    if (motion_floor > 1.0f) motion_floor = 1.0f;
+    d->framegen_motion_floor = motion_floor;
+}
+
+/* --- Full frame-generation configuration ------------------------------------------------- */
+
+void vkr_dis_set_quality_mode(VkrDis* d, uint32_t mode) {
+    if (!d) return;
+    if (mode >= DIS_QUALITY_MODES) mode = DIS_QUALITY_MODES - 1u;
+    d->quality_mode = mode;
+    /* Preset the flow working resolution; an explicit vkr_dis_set_flow_scale() overrides it. */
+    d->flow_min_side = DIS_QUALITY_FLOW_SIDE[mode];
+    d->perf_mode = (mode == 0u);
+}
+
+void vkr_dis_set_flow_scale(VkrDis* d, uint32_t flow_min_side) {
+    if (!d) return;
+    if (flow_min_side < DIS_FLOW_MIN_SIDE_FLOOR) flow_min_side = DIS_FLOW_MIN_SIDE_FLOOR;
+    if (flow_min_side > DIS_FLOW_MIN_SIDE_CEIL) flow_min_side = DIS_FLOW_MIN_SIDE_CEIL;
+    d->flow_min_side = flow_min_side;
+}
+
+void vkr_dis_set_render_scale(VkrDis* d, float scale) {
+    if (!d) return;
+    if (scale < DIS_RENDER_SCALE_MIN) scale = DIS_RENDER_SCALE_MIN;
+    if (scale > 1.0f) scale = 1.0f;
+    d->render_scale = scale;
+}
+
+void vkr_dis_set_target_fps(VkrDis* d, uint32_t fps) {
+    if (!d) return;
+    d->target_fps = fps;
+}
+
+void vkr_dis_set_floor_fps(VkrDis* d, uint32_t fps) {
+    if (!d) return;
+    d->floor_fps = fps;
+}
+
+void vkr_dis_set_max_mult(VkrDis* d, uint32_t mult) {
+    if (!d) return;
+    if (mult < 1u) mult = 1u;
+    if (mult > VKR_DIS_MAX_GENERATIONS + 1u) mult = VKR_DIS_MAX_GENERATIONS + 1u;
+    d->max_mult = mult;
+}
+
+void vkr_dis_set_generated_frames(VkrDis* d, uint32_t count) {
+    if (!d) return;
+    if (count > VKR_DIS_MAX_GENERATIONS) count = VKR_DIS_MAX_GENERATIONS;
+    d->generated_frames = count;
+}
+
+void vkr_dis_set_post_process(VkrDis* d, bool enabled) {
+    if (!d) return;
+    d->post_process = enabled;
+}
+
+void vkr_dis_set_artifact_clean(VkrDis* d, bool enabled) {
+    if (!d) return;
+    d->artifact_clean = enabled;
+}
+
+void vkr_dis_set_perf_mode(VkrDis* d, bool enabled) {
+    if (!d) return;
+    d->perf_mode = enabled;
+}
+
+void vkr_dis_set_fp16(VkrDis* d, bool enabled) {
+    if (!d) return;
+    d->fp16 = enabled;
+}
+
+void vkr_dis_set_heatmap(VkrDis* d, bool enabled) {
+    if (!d) return;
+    d->heatmap = enabled;
+}
+
+void vkr_dis_set_pacing(VkrDis* d, uint32_t carry_pct, uint32_t cz_max) {
+    if (!d) return;
+    if (carry_pct > 100u) carry_pct = 100u;
+    if (cz_max < 1u) cz_max = 1u;
+    if (cz_max > VKR_DIS_MAX_GENERATIONS) cz_max = VKR_DIS_MAX_GENERATIONS;
+    d->cz_carry_pct = carry_pct;
+    d->cz_max = cz_max;
+}
+
+bool vkr_dis_is_active(const VkrDis* d) {
+    return d && d->active;
+}
+
+void vkr_dis_log_stage_times(VkrDis* d) {
+    if (!d || d->stage_frames == 0) {
+        DIS_LOGI("DIS stage times: no frames sampled yet");
+        return;
+    }
+    const double n = (double)d->stage_frames;
+    DIS_LOGI("DIS stage times (ms/frame, avg over %llu): flow %.3f, refine %.3f, interp %.3f, "
+             "present %.3f",
+             (unsigned long long)d->stage_frames,
+             (double)d->stage_ns[0] / n * 1.0e-6,
+             (double)d->stage_ns[1] / n * 1.0e-6,
+             (double)d->stage_ns[2] / n * 1.0e-6,
+             (double)d->stage_ns[3] / n * 1.0e-6);
+    d->stage_ns[0] = d->stage_ns[1] = d->stage_ns[2] = d->stage_ns[3] = 0;
+    d->stage_frames = 0;
+}
+
 bool vkr_dis_needs_rebuild(const VkrDis* d, uint32_t width, uint32_t height, VkFormat format,
                            VkrDisContentRect content) {
     if (!d || d->unavailable) return false;
@@ -1255,8 +1554,15 @@ bool vkr_dis_prepare(VkrDis* d, uint32_t width, uint32_t height, VkFormat format
     }
     d->content = content;
 
+    /* render_scale shrinks the generation working resolution.  The flow pyramid is the stage that
+     * is already parameterised by resolution, so the scale is applied there; that is where the
+     * cost of generation concentrates. */
+    uint32_t eff_min_side = (uint32_t)((float)d->flow_min_side * d->render_scale + 0.5f);
+    if (eff_min_side < DIS_FLOW_MIN_SIDE_FLOOR) eff_min_side = DIS_FLOW_MIN_SIDE_FLOOR;
+    if (eff_min_side > DIS_FLOW_MIN_SIDE_CEIL) eff_min_side = DIS_FLOW_MIN_SIDE_CEIL;
+
     uint32_t w, h;
-    dis_flow_extent(d->flow_min_side, content.width, content.height, &w, &h);
+    dis_flow_extent(eff_min_side, content.width, content.height, &w, &h);
     if (w < DIS_MIN_EXTENT) w = DIS_MIN_EXTENT;
     if (h < DIS_MIN_EXTENT) h = DIS_MIN_EXTENT;
 
@@ -1264,7 +1570,8 @@ bool vkr_dis_prepare(VkrDis* d, uint32_t width, uint32_t height, VkFormat format
 
     if (d->built && d->built_extent.width == w && d->built_extent.height == h &&
         d->built_full_extent.width == width && d->built_full_extent.height == height &&
-        d->built_format == format && d->built_min_side == d->flow_min_side && d->levels == levels &&
+        d->built_format == format && d->built_min_side == eff_min_side && d->levels == levels &&
+        d->luma_format == dis_pick_luma_format(d) &&
         d->content.width == content.width && d->content.height == content.height) {
         d->content.x = content.x;
         d->content.y = content.y;
@@ -1292,6 +1599,9 @@ bool vkr_dis_prepare(VkrDis* d, uint32_t width, uint32_t height, VkFormat format
     }
 
     d->levels = levels;
+    /* The luminance plane format follows the half-precision setting, so re-resolve it before the
+     * resources are (re)built. */
+    d->luma_format = dis_pick_luma_format(d);
 
     if (!dis_create_resources(d, w, h, content.width, content.height, format)) {
         DIS_LOGW("DIS resource build failed at %ux%u; frame generation unavailable", w, h);
@@ -1305,7 +1615,7 @@ bool vkr_dis_prepare(VkrDis* d, uint32_t width, uint32_t height, VkFormat format
     d->built_full_extent.width = width;
     d->built_full_extent.height = height;
     d->built_format = format;
-    d->built_min_side = d->flow_min_side;
+    d->built_min_side = eff_min_side;
     d->built = true;
     d->frame_count = 0;
     d->prev_idx = 0;
@@ -1373,6 +1683,10 @@ static void dis_log_plan(VkrDis* d, uint64_t now, float source_rate, float desir
 uint32_t vkr_dis_plan(VkrDis* d, uint32_t capacity, uint64_t source_frames) {
     if (!d || d->unavailable || !d->built) return 0;
     if (capacity > VKR_DIS_MAX_GENERATIONS) capacity = VKR_DIS_MAX_GENERATIONS;
+    /* Output-multiplier cap (max_mult counts the real frame) and the burst cap. */
+    if (d->max_mult >= 1u && capacity > d->max_mult - 1u) capacity = d->max_mult - 1u;
+    if (d->generated_frames >= 1u && capacity > d->generated_frames) capacity = d->generated_frames;
+    if (d->cz_max >= 1u && capacity > d->cz_max) capacity = d->cz_max;
 
     const uint64_t now = dis_now_ns();
     dis_track_source(d, now, source_frames);
@@ -1386,14 +1700,30 @@ uint32_t vkr_dis_plan(VkrDis* d, uint32_t capacity, uint64_t source_frames) {
     }
 
     const float source_rate = 1.0f / d->src_interval;
+
+    /* Floor: below this source rate, generating only adds artefacts (few source frames means the
+     * flow is at its least reliable), so stay off entirely. */
+    if (d->floor_fps > 0u && source_rate < (float)d->floor_fps) {
+        d->planned_gen = 0;
+        d->gen_high_streak = 0;
+        d->gen_low_streak = 0;
+        return 0;
+    }
+
     float desired = d->target_fps > 0 ? (float)d->target_fps : d->refresh_rate;
     if (d->refresh_rate > 0.0f && desired > d->refresh_rate) desired = d->refresh_rate;
     if (desired <= 0.0f) return 0;
 
+    /* Pacing response.  cz_carry_pct is how much of an unused budget is carried forward, so a
+     * higher carry means a lazier response to changes in the desired rate. */
+    const uint32_t carry = d->cz_carry_pct > 100u ? 100u : d->cz_carry_pct;
+    float response = (float)(100u - carry) / 100.0f;
+    if (response < 0.05f) response = 0.05f;
+
     if (d->smoothed_desired <= 0.0f) {
         d->smoothed_desired = desired;
     } else {
-        d->smoothed_desired += (desired - d->smoothed_desired) * 0.25f;
+        d->smoothed_desired += (desired - d->smoothed_desired) * response;
     }
     const float eff_desired = d->smoothed_desired;
 
@@ -1552,7 +1882,11 @@ void vkr_dis_process(VkrDis* d, VkCommandBuffer cmd, VkImage source, uint32_t wi
 
     dis_prime_layouts(d, cmd);
 
-    const DisRefine refine = dis_refine_for(generations);
+    DisRefine refine = dis_refine_for(generations);
+    /* Performance mode drops the variational refinement entirely: it is the most expensive part
+     * of the pipeline and the flow is still usable without it. */
+    if (d->perf_mode) refine.vr_levels = 0u;
+    const uint64_t stage_t0 = dis_now_ns();
     const uint32_t L = d->levels;
     const uint32_t coarse = L - 1;
     const uint32_t w = d->built_extent.width;
@@ -1674,6 +2008,24 @@ void vkr_dis_process(VkrDis* d, VkCommandBuffer cmd, VkImage source, uint32_t wi
         dis_vr_level(d, cmd, slot, l, lw, lh, &refine, l < refine.vr_levels);
     }
 
+    d->stage_ns[0] += dis_now_ns() - stage_t0;
+    d->active = true;
+}
+
+void vkr_dis_process_batch(VkrDis* d, VkCommandBuffer cmd, const VkImage* sources,
+                           uint32_t source_count, uint32_t width, uint32_t height,
+                           uint32_t generations) {
+    if (!d || !sources || source_count == 0) return;
+    for (uint32_t i = 0; i < source_count; i++) {
+        vkr_dis_process(d, cmd, sources[i], width, height,
+                        i + 1u == source_count ? generations : 0u);
+    }
+}
+
+void vkr_dis_wait(VkrDis* d) {
+    /* All work is recorded into the caller-owned command buffer.  The surrounding renderer owns
+     * queue submission and its semaphores, so there is deliberately no device-wide wait here. */
+    (void)d;
 }
 
 static void dis_render_into(VkrDis* d, VkCommandBuffer cmd, float t, int debug_mode,
@@ -1685,6 +2037,9 @@ static void dis_render_into(VkrDis* d, VkCommandBuffer cmd, float t, int debug_m
     DisInterpPC ipc;
     ipc.t = t;
     ipc.debugMode = debug_mode;
+    ipc.strength = d->framegen_strength;
+    ipc.motionFloor = d->framegen_motion_floor;
+    ipc.clean = d->artifact_clean ? 1 : 0;
 
     vkd.CmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, d->pass_interp.pipeline);
     vkd.CmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, d->pipeline_layout, 0, 1,
@@ -1693,9 +2048,36 @@ static void dis_render_into(VkrDis* d, VkCommandBuffer cmd, float t, int debug_m
     vkd.CmdDispatch(cmd, (w + DIS_LOCAL_SIZE - 1) / DIS_LOCAL_SIZE,
                     (h + DIS_LOCAL_SIZE - 1) / DIS_LOCAL_SIZE, 1);
 
-    dis_barrier(cmd, d->interp_out.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
-                VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+    /* Post-process: run the sharpen pass over the interpolated frame and blit its output.  When it
+     * is off the interpolated frame is blitted directly, exactly as before. */
+    const bool sharpen = d->post_process && debug_mode == 0 &&
+                         d->pass_sharpen.pipeline != VK_NULL_HANDLE;
+
+    if (sharpen) {
+        /* interp_out is now consumed by a compute pass rather than by a transfer. */
+        dis_barrier(cmd, d->interp_out.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
+                    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                    VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+
+        DisSharpenPC spc;
+        spc.amount = DIS_SHARPEN_AMOUNT;
+        vkd.CmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, d->pass_sharpen.pipeline);
+        vkd.CmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, d->pipeline_layout, 0, 1,
+                                  &d->sharpen_sets[d->active_slot], 0, NULL);
+        vkd.CmdPushConstants(cmd, d->pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(spc),
+                             &spc);
+        vkd.CmdDispatch(cmd, (w + DIS_LOCAL_SIZE - 1) / DIS_LOCAL_SIZE,
+                        (h + DIS_LOCAL_SIZE - 1) / DIS_LOCAL_SIZE, 1);
+
+        dis_barrier(cmd, d->interp_sharp.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
+                    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+    } else {
+        dis_barrier(cmd, d->interp_out.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
+                    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+    }
+    const VkImage interp_src = sharpen ? d->interp_sharp.image : d->interp_out.image;
 
     dis_barrier(cmd, target_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
                 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
@@ -1749,12 +2131,22 @@ static void dis_render_into(VkrDis* d, VkCommandBuffer cmd, float t, int debug_m
         }
     }
 
-    dis_blit_rect(cmd, d->interp_out.image, 0, 0, w, h,
+    dis_blit_rect(cmd, interp_src, 0, 0, w, h,
                   target_image, tx, ty, tw, th, VK_FILTER_LINEAR);
 
-    dis_barrier(cmd, d->interp_out.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
-                VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_WRITE_BIT);
+    /* Hand both intermediates back in the state the next frame's writers expect. */
+    if (sharpen) {
+        dis_barrier(cmd, d->interp_out.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
+                    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                    VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_SHADER_WRITE_BIT);
+        dis_barrier(cmd, d->interp_sharp.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
+                    VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                    VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_WRITE_BIT);
+    } else {
+        dis_barrier(cmd, d->interp_out.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
+                    VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                    VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_WRITE_BIT);
+    }
 }
 
 void vkr_dis_generate_into(VkrDis* d, VkCommandBuffer cmd, uint32_t generation,
@@ -1766,7 +2158,8 @@ void vkr_dis_generate_into(VkrDis* d, VkCommandBuffer cmd, uint32_t generation,
     if (d->last_generations == 0) return;
 
     const float t = (float)(generation + 1) / (float)(d->last_generations + 1);
-    dis_render_into(d, cmd, t, d->debug_flow ? 1 : 0, target_image, width, height, base_image);
+    dis_render_into(d, cmd, t, (d->debug_flow || d->heatmap) ? 1 : 0, target_image, width, height,
+                    base_image);
 }
 
 void vkr_dis_debug_into(VkrDis* d, VkCommandBuffer cmd, VkImage target_image, uint32_t width,

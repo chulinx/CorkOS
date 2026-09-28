@@ -38,7 +38,7 @@ void main() {
         return;
     }
 
-    ivec2 org = s * 3;
+    ivec2 org = s * 2;   // matches DIS_PATCH_STRIDE
     ivec2 denseSize = textureSize(lastLumaMap, 0);
     ivec2 denseMax = denseSize - 1;
     vec2 invImageSize = 1.0 / vec2(denseSize);

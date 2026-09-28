@@ -35,13 +35,14 @@ void main() {
     int candCount = 0;
     float bestSsd = -1.0;
 
-    ivec2 s0 = ivec2(pix.x / 3, pix.y / 3) - 2;
+    // Stride 2: must match DIS_PATCH_STRIDE in vkr_dis.c (see the note there).
+    ivec2 s0 = ivec2(pix.x / 2, pix.y / 2) - 2;
     for (int dy = 0; dy <= 2; dy++) {
         for (int dx = 0; dx <= 2; dx++) {
             ivec2 s = s0 + ivec2(dx, dy);
             if (s.x < 0 || s.y < 0 || s.x >= sparseSize.x || s.y >= sparseSize.y) continue;
             vec4 f = texelFetch(sparseFlowMap, s, 0);
-            f.w = textureLod(lastImage, (vec2(s * 3) + 4.0) * invDenseSize, 0.0).x;
+            f.w = textureLod(lastImage, (vec2(s * 2) + 4.0) * invDenseSize, 0.0).x;
             cand[candCount] = f;
             candCount++;
             if (f.z >= 0.0 && (bestSsd < 0.0 || f.z < bestSsd)) bestSsd = f.z;

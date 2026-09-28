@@ -1,0 +1,36 @@
+#version 450
+
+precision highp float;
+precision highp int;
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+// Interpolated frame produced by dis_interpolate.comp.
+layout(set = 0, binding = 0) uniform sampler2D srcColor;
+// Sharpened result, written in place of the interpolated frame.
+layout(set = 0, binding = 5, rgba8) uniform image2D dstImage;
+
+layout(push_constant) uniform PC {
+    float amount;
+} pc;
+
+// Unsharp mask.  Interpolation is inherently a low-pass operation (it averages two warped
+// samples), so the generated frames read as slightly soft next to the real ones.  A small amount
+// of high-frequency boost puts the perceived detail back without touching the geometry, which is
+// what the reference implementation's post-process stage does.
+void main() {
+    ivec2 pix = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 size = imageSize(dstImage);
+    if (pix.x >= size.x || pix.y >= size.y) return;
+
+    ivec2 mx = size - 1;
+    vec3 c = texelFetch(srcColor, pix, 0).rgb;
+
+    vec3 blur = (texelFetch(srcColor, clamp(pix + ivec2(1, 0), ivec2(0), mx), 0).rgb
+               + texelFetch(srcColor, clamp(pix - ivec2(1, 0), ivec2(0), mx), 0).rgb
+               + texelFetch(srcColor, clamp(pix + ivec2(0, 1), ivec2(0), mx), 0).rgb
+               + texelFetch(srcColor, clamp(pix - ivec2(0, 1), ivec2(0), mx), 0).rgb) * 0.25;
+
+    vec3 outC = clamp(c + (c - blur) * pc.amount, 0.0, 1.0);
+    imageStore(dstImage, pix, vec4(outC, 1.0));
+}

@@ -1734,7 +1734,7 @@ bool VulkanRendererContext::ensureFrameGen(uint32_t width, uint32_t height) {
     if (dis == nullptr) {
         dis = vkr_dis_create(device, physicalDevice);
         vkr_dis_configure(dis, frameGenFlowMinSide, frameGenTargetFps, frameGenRefreshRate);
-        vkr_dis_set_debug_flow(dis, frameGenDebugFlow);
+        applyFrameGenConfig();
     }
     if (disCmd == VK_NULL_HANDLE && cmdPool != VK_NULL_HANDLE) {
         VkCommandBufferAllocateInfo ai{};
@@ -1945,7 +1945,7 @@ void VulkanRendererContext::setFrameGenEnabled(bool enabled) {
         dis = vkr_dis_create(device, physicalDevice);
         if (!dis) { frameGenEnabled = false; return; }
         vkr_dis_configure(dis, frameGenFlowMinSide, frameGenTargetFps, frameGenRefreshRate);
-        vkr_dis_set_debug_flow(dis, frameGenDebugFlow);
+        applyFrameGenConfig();
         if (disCmd == VK_NULL_HANDLE && cmdPool != VK_NULL_HANDLE) {
             VkCommandBufferAllocateInfo ai{};
             ai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -1976,6 +1976,123 @@ void VulkanRendererContext::setFrameGenConfig(uint32_t flowMinSide, uint32_t tar
 void VulkanRendererContext::setFrameGenDebugFlow(bool on) {
     frameGenDebugFlow = on;
     if (dis) vkr_dis_set_debug_flow(dis, on);
+}
+
+void VulkanRendererContext::setFrameGenStrength(float strength) {
+    if (strength < 0.0f) strength = 0.0f;
+    if (strength > 1.0f) strength = 1.0f;
+    frameGenStrength = strength;
+    if (dis) vkr_dis_set_strength(dis, frameGenStrength);
+}
+
+void VulkanRendererContext::setFrameGenMotionFloor(float motionFloor) {
+    if (motionFloor < 0.0f) motionFloor = 0.0f;
+    if (motionFloor > 1.0f) motionFloor = 1.0f;
+    frameGenMotionFloor = motionFloor;
+    if (dis) vkr_dis_set_motion_floor(dis, frameGenMotionFloor);
+}
+
+void VulkanRendererContext::applyFrameGenConfig() {
+    if (!dis) return;
+    /* quality_mode presets the flow resolution and perf_mode; the explicit flow-scale and
+     * perf-mode values are applied afterwards so they win. */
+    vkr_dis_set_quality_mode(dis, frameGenQualityMode);
+    vkr_dis_set_flow_scale(dis, frameGenFlowMinSide);
+    vkr_dis_set_render_scale(dis, frameGenRenderScale);
+    vkr_dis_set_target_fps(dis, frameGenTargetFps);
+    vkr_dis_set_floor_fps(dis, frameGenFloorFps);
+    vkr_dis_set_max_mult(dis, frameGenMaxMult);
+    vkr_dis_set_generated_frames(dis, frameGenGenerated);
+    vkr_dis_set_post_process(dis, frameGenPostProcess);
+    vkr_dis_set_artifact_clean(dis, frameGenArtifactClean);
+    vkr_dis_set_perf_mode(dis, frameGenPerfMode);
+    vkr_dis_set_fp16(dis, frameGenFp16);
+    vkr_dis_set_heatmap(dis, frameGenHeatmap);
+    vkr_dis_set_pacing(dis, frameGenCzCarryPct, frameGenCzMax);
+    vkr_dis_set_strength(dis, frameGenStrength);
+    vkr_dis_set_motion_floor(dis, frameGenMotionFloor);
+    vkr_dis_set_debug_flow(dis, frameGenDebugFlow);
+}
+
+void VulkanRendererContext::setFGQualityMode(uint32_t mode) {
+    frameGenQualityMode = mode;
+    if (dis) vkr_dis_set_quality_mode(dis, mode);
+}
+
+void VulkanRendererContext::setFGFlowScale(uint32_t flowMinSide) {
+    frameGenFlowMinSide = flowMinSide;
+    if (dis) vkr_dis_set_flow_scale(dis, flowMinSide);
+}
+
+void VulkanRendererContext::setFGRenderScale(float scale) {
+    if (scale < 0.0f) scale = 0.0f;
+    if (scale > 1.0f) scale = 1.0f;
+    frameGenRenderScale = scale;
+    if (dis) vkr_dis_set_render_scale(dis, scale);
+}
+
+void VulkanRendererContext::setFGTargetFps(uint32_t fps) {
+    frameGenTargetFps = fps;
+    if (dis) vkr_dis_set_target_fps(dis, fps);
+}
+
+void VulkanRendererContext::setFGFloorFps(uint32_t fps) {
+    frameGenFloorFps = fps;
+    if (dis) vkr_dis_set_floor_fps(dis, fps);
+}
+
+void VulkanRendererContext::setFGMaxMult(uint32_t mult) {
+    if (mult < 1u) mult = 1u;
+    frameGenMaxMult = mult;
+    if (dis) vkr_dis_set_max_mult(dis, mult);
+}
+
+void VulkanRendererContext::setFGGeneratedFrameCount(uint32_t count) {
+    frameGenGenerated = count;
+    if (dis) vkr_dis_set_generated_frames(dis, count);
+}
+
+void VulkanRendererContext::setFGPostProcess(bool on) {
+    frameGenPostProcess = on;
+    if (dis) vkr_dis_set_post_process(dis, on);
+}
+
+void VulkanRendererContext::setFGArtifactClean(bool on) {
+    frameGenArtifactClean = on;
+    if (dis) vkr_dis_set_artifact_clean(dis, on);
+}
+
+void VulkanRendererContext::setFGPerfMode(bool on) {
+    frameGenPerfMode = on;
+    if (dis) vkr_dis_set_perf_mode(dis, on);
+}
+
+void VulkanRendererContext::setFGFp16(bool on) {
+    frameGenFp16 = on;
+    if (dis) vkr_dis_set_fp16(dis, on);
+}
+
+void VulkanRendererContext::setFGHeatmap(bool on) {
+    frameGenHeatmap = on;
+    if (dis) vkr_dis_set_heatmap(dis, on);
+}
+
+void VulkanRendererContext::setFGCzCarryPct(uint32_t pct) {
+    frameGenCzCarryPct = pct;
+    if (dis) vkr_dis_set_pacing(dis, frameGenCzCarryPct, frameGenCzMax);
+}
+
+void VulkanRendererContext::setFGCzMax(uint32_t czMax) {
+    frameGenCzMax = czMax;
+    if (dis) vkr_dis_set_pacing(dis, frameGenCzCarryPct, frameGenCzMax);
+}
+
+bool VulkanRendererContext::isFGActive() const {
+    return dis != nullptr && vkr_dis_is_active(dis);
+}
+
+void VulkanRendererContext::logFGStageTimes() {
+    if (dis) vkr_dis_log_stage_times(dis);
 }
 
 void VulkanRendererContext::dumpRendererInfo() {
