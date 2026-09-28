@@ -190,13 +190,30 @@ public class LogView extends View {
     }
 
     public static File getLogFile(Context context) {
+        return buildLogFile(context, "");
+    }
+
+    /**
+     * A separate file for the opt-in Winlator logcat capture, so it sits next to the game log
+     * instead of being mixed into it.
+     */
+    public static File getWinlatorLogFile(Context context) {
+        return buildLogFile(context, "_winlator");
+    }
+
+    private static File buildLogFile(Context context, String suffix) {
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
         String winlatorPath = sp.getString("winlator_path_uri", null);
         File logsDir;
 
         if (winlatorPath != null) {
             Uri winlatorUri = Uri.parse(winlatorPath);
-            logsDir = new File(FileUtils.getFilePathFromUri(context, winlatorUri), "logs");
+            // getFilePathFromUri can return null when the URI no longer resolves; fall back to the
+            // default path instead of building a File from null.
+            String resolvedPath = FileUtils.getFilePathFromUri(context, winlatorUri);
+            logsDir = resolvedPath != null
+                    ? new File(resolvedPath, "logs")
+                    : new File(SettingsFragment.DEFAULT_WINLATOR_PATH, "logs");
         }
         else {
             logsDir = new File(SettingsFragment.DEFAULT_WINLATOR_PATH, "logs");
@@ -205,7 +222,9 @@ public class LogView extends View {
         if (!logsDir.exists())
             logsDir.mkdirs();
 
-        String logFile = fileName.replaceAll("\\s", "_").toLowerCase() + "_" + DateFormat.format("yyyy-MM-dd_HH-mm-ss", new Date()) + ".txt";
+        String baseName = fileName != null && !fileName.isEmpty() ? fileName : "winlator";
+        String logFile = baseName.replaceAll("\\s", "_").toLowerCase()
+                + suffix + "_" + DateFormat.format("yyyy-MM-dd_HH-mm-ss", new Date()) + ".txt";
         return new File(logsDir, logFile);
     }
     

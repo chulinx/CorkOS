@@ -114,6 +114,7 @@ data class SettingsModel(
     val wineDebug: Boolean,
     val wineDebugChannels: String,
     val box64Logs: Boolean,
+    val winlatorLogs: Boolean,
     val customApiKeyEnabled: Boolean,
     val customApiKey: String,
     val contentsUrl: String,
@@ -276,6 +277,8 @@ private fun SettingsScreen(model: SettingsModel, callbacks: SettingsCallbacks) {
                     }
                     GroupDivider()
                     ToggleRow(stringResource(R.string.enable_box64_logs), model.box64Logs) { callbacks.onBooleanChanged("enable_box64_logs", it) }
+                    GroupDivider()
+                    ToggleRow(stringResource(R.string.enable_winlator_logs), model.winlatorLogs) { callbacks.onBooleanChanged("enable_winlator_logs", it) }
                 }
             }
 

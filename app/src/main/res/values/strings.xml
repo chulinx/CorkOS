@@ -972,6 +972,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="sidebar_fg_target_fps">Target FPS</string>
     <string name="sidebar_fg_auto">Auto</string>
     <string name="sidebar_fg_off">Off</string>
+    <string name="enable_winlator_logs">Capture Winlator logs</string>
     <string name="add_to_home_screen_long_press_hint">This launcher cannot pin shortcuts. Long-press the %1$s icon to launch the game from its menu.</string>
     <string name="add_to_home_screen_added">Shortcut added to the home screen.</string>
     <string name="sidebar_fg_floor_fps">Min Source FPS</string>

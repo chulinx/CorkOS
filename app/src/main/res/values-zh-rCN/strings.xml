@@ -966,6 +966,7 @@
     <string name="sidebar_fg_target_fps">目标帧率</string>
     <string name="sidebar_fg_auto">跟随屏幕</string>
     <string name="sidebar_fg_off">关闭</string>
+    <string name="enable_winlator_logs">捕获 Winlator 日志</string>
     <string name="add_to_home_screen_long_press_hint">此桌面不支持自动添加快捷方式。可长按 %1$s 图标，在弹出菜单里启动游戏。</string>
     <string name="add_to_home_screen_added">已添加到桌面。</string>
     <string name="sidebar_fg_floor_fps">最低源帧率</string>

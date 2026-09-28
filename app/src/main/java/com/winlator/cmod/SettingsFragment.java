@@ -462,6 +462,7 @@ public class SettingsFragment extends Fragment {
                 preferences.getBoolean("enable_wine_debug", false),
                 preferences.getString("wine_debug_channels", DEFAULT_WINE_DEBUG_CHANNELS),
                 preferences.getBoolean("enable_box64_logs", false),
+                preferences.getBoolean("enable_winlator_logs", false),
                 preferences.getBoolean("enable_custom_api_key", false),
                 preferences.getString("custom_api_key", ""),
                 preferences.getString("downloadable_contents_url", ContentsManager.REMOTE_PROFILES),

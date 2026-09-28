@@ -84,6 +84,7 @@ import com.winlator.cmod.core.WineRequestHandler;
 import com.winlator.cmod.core.WineStartMenuCreator;
 import com.winlator.cmod.core.WineThemeManager;
 import com.winlator.cmod.core.WineUtils;
+import com.winlator.cmod.core.WinlatorLogcatLogger;
 import com.winlator.cmod.inputcontrols.ControlsProfile;
 import com.winlator.cmod.inputcontrols.ExternalController;
 import com.winlator.cmod.inputcontrols.InputControlsManager;
@@ -232,6 +233,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private MagnifierView magnifierView;
     private boolean softStretchEnabled = false;
     private DebugDialog debugDialog;
+    private WinlatorLogcatLogger winlatorLogcatLogger;
     private String rendererLogPath;
     private KeyValueSet displayxConfig;
     public boolean performanceMode;
@@ -420,6 +422,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         boolean enableLogs = preferences.getBoolean("enable_wine_debug", false)
                 || preferences.getBoolean("enable_box64_logs", false);
+        boolean enableWinlatorLogs = preferences.getBoolean("enable_winlator_logs", false);
 
         wireSidebarListeners(enableLogs);
 
@@ -523,9 +526,16 @@ public class XServerDisplayActivity extends AppCompatActivity {
         imageFs.setWinePath(wineInfo.path);
 
         ProcessHelper.removeAllDebugCallbacks();
+        // The opt-in Winlator logcat capture writes its own file, so it must not be what names the
+        // game log; only let it name the log when nothing else does.
+        if (enableLogs || enableWinlatorLogs) LogView.setFilename(getExecutable());
         if (enableLogs) {
-            LogView.setFilename(getExecutable());
             ProcessHelper.addDebugCallback(debugDialog = new DebugDialog(this));
+        }
+        if (enableWinlatorLogs) {
+            winlatorLogcatLogger = new WinlatorLogcatLogger(LogView.getWinlatorLogFile(this));
+            winlatorLogcatLogger.start();
+            ProcessHelper.addDebugCallback(winlatorLogcatLogger);
         }
 
         graphicsDriver = container.getGraphicsDriver();
@@ -1003,6 +1013,11 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        if (winlatorLogcatLogger != null) {
+            ProcessHelper.removeDebugCallback(winlatorLogcatLogger);
+            winlatorLogcatLogger.stop();
+            winlatorLogcatLogger = null;
+        }
         if (taskManagerSidebar != null) taskManagerSidebar.stop();
         super.onDestroy();
     }
