@@ -15,9 +15,19 @@ public class ShortcutBroadcastReceiver extends BroadcastReceiver {
 
     private static final String LOG_TAG = "ShortcutBroadcastReceiver";
 
+    /** Fired by the system when the launcher confirms a pinned shortcut (requestPinShortcut). */
+    public static final String ACTION_PIN_RESULT = "com.winlator.cmod.PIN_SHORTCUT_RESULT";
+
     @Override
     public void onReceive(Context context, Intent intent) {
         String action = intent.getAction();
+        if (ACTION_PIN_RESULT.equals(action)) {
+            // Definitive confirmation that the launcher really pinned the shortcut.
+            Log.d(LOG_TAG, "PIN CONFIRMED by the launcher");
+            ShortcutsFragment.onPinConfirmed();
+            Toast.makeText(context, R.string.add_to_home_screen_added, Toast.LENGTH_SHORT).show();
+            return;
+        }
         if (action != null && action.equals("com.winlator.SHORTCUT_ADDED")) {
             boolean isShortcutAdded = intent.getBooleanExtra("shortcut_added", false);
             if (isShortcutAdded) {

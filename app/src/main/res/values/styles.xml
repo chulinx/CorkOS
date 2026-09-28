@@ -8,8 +8,13 @@
         <item name="android:windowBackground">@color/window_background_color</item>
         <item name="android:colorBackground">@color/window_background_color</item>
         <item name="android:windowDisablePreview">true</item>
-        <item name="android:statusBarColor">#000000</item>
-        <item name="android:navigationBarColor">#000000</item>
+        <!-- Edge-to-edge: transparent system bars + extend into the display cutout.
+             Without this the window stops at the bar boundaries, which in landscape leaves
+             a hard white strip behind the gesture nav handle and a gap beside the punch-hole
+             camera. MainActivity.onCreate additionally calls setDecorFitsSystemWindows(false). -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
         <!-- App-wide typeface: MiSans (SIL OFL) — matches the reference "盖世游戏" face. -->
         <item name="android:fontFamily">@font/misans_vf</item>
         <item name="android:textViewStyle">@style/TextView</item>
@@ -30,8 +35,9 @@
         <item name="android:windowBackground">@color/window_background_color_dark</item>
         <item name="android:colorBackground">@color/window_background_color_dark</item>
         <item name="android:windowDisablePreview">true</item>
-        <item name="android:statusBarColor">#000000</item>
-        <item name="android:navigationBarColor">#000000</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
         <!-- App-wide typeface: MiSans (SIL OFL) — matches the reference "盖世游戏" face. -->
         <item name="android:fontFamily">@font/misans_vf</item>
         <item name="android:textViewStyle">@style/TextView.Dark</item>

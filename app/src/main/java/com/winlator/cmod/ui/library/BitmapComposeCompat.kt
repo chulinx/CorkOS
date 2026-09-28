@@ -182,6 +182,7 @@ internal fun LibraryRoot(
         Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .windowInsetsPadding(WindowInsets.navigationBars)
             .padding(horizontal = 14.dp)
     ) {
         if (landscape) {

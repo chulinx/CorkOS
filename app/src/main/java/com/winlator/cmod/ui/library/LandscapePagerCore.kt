@@ -20,6 +20,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PageSize
 import androidx.compose.foundation.pager.rememberPagerState
@@ -115,10 +118,12 @@ internal fun LandscapePagerCore(
         Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color.Black.copy(.84f), Color.Black.copy(.48f), Color.Black.copy(.20f)))))
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(.18f), Color.Transparent, Color.Black.copy(.72f)))))
         // Minimal top inset: the status bar is hidden in landscape, so the title can sit near the edge.
+        // windowInsetsPadding keeps the play/more footer clear of the gesture-nav handle.
         Column(
             Modifier
                 .fillMaxSize()
                 .padding(start = 26.dp, end = 26.dp, top = 2.dp, bottom = 12.dp)
+                .windowInsetsPadding(WindowInsets.navigationBars)
         ) {
             header()
             Spacer(Modifier.size(9.dp))

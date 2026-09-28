@@ -40,15 +40,18 @@ import com.winlator.cmod.MainActivity
 import com.winlator.cmod.R
 
 /**
- * Keeps the system bars visible (status bar readable) while letting the app draw a normal, inset
- * layout. Previously this forced a fullscreen window; in-game screens still do that via their own
- * `AppThemeFullscreen` theme, so the main UI no longer needs to.
+ * Shows the system bars (status bar readable, navigation bar gesture handle visible) for the main
+ * UI. In landscape the window goes edge-to-edge (content fills the screen, no white system-bar
+ * strips); the library hides the status bar itself via `isStatusBarHidden`. Portrait keeps the
+ * themed, inset layout. Bar colors are owned by `WinZTheme.ConfigureSystemBars`.
  */
 fun applySystemBars(activity: Activity?) {
     if (activity == null) return
 
     val window = activity.window
-    WindowCompat.setDecorFitsSystemWindows(window, true)
+    val landscape = activity.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    // Edge-to-edge only in landscape; portrait keeps the system-inset layout.
+    WindowCompat.setDecorFitsSystemWindows(window, !landscape)
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
         window.attributes = window.attributes.apply {

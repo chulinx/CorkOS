@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.res.ColorStateList
+import android.content.res.Configuration
 import android.view.View
 import androidx.appcompat.widget.Toolbar
 import androidx.annotation.StringRes
@@ -24,6 +25,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.AbstractComposeView
 import androidx.compose.ui.text.TextStyle
@@ -41,6 +43,7 @@ import androidx.preference.PreferenceManager
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.navigation.NavigationView
 import com.winlator.cmod.R
+import com.winlator.cmod.MainActivity
 
 enum class WinlatorThemeType(
     val id: String,
@@ -234,17 +237,30 @@ private fun ConfigureComposeHostFocus() {
 @Composable
 private fun ConfigureSystemBars(theme: WinlatorThemeType) {
     val activity = LocalContext.current.findActivity()
+    val configuration = LocalConfiguration.current
     val colors = winlatorColorScheme(theme)
-    DisposableEffect(activity, theme) {
+    DisposableEffect(activity, theme, configuration.orientation) {
         val window = activity?.window
         if (window != null) {
-            // Keep the status bar (and navigation bar) visible and let the system inset the content,
-            // so the clock / battery stay readable. In-game screens keep their own immersive theme.
-            WindowCompat.setDecorFitsSystemWindows(window, true)
-            window.statusBarColor = colors.background.toArgb()
-            window.navigationBarColor = colors.background.toArgb()
+            val landscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+            if (landscape) {
+                // Edge-to-edge in landscape: let the library/grid fill the whole screen so the
+                // camera cutout and the gesture-nav area aren't painted as hard white system-bar
+                // strips. The status bar is intentionally hidden by the library chrome in landscape.
+                WindowCompat.setDecorFitsSystemWindows(window, false)
+                window.statusBarColor = Color.Transparent.toArgb()
+                window.navigationBarColor = Color.Transparent.toArgb()
+            } else {
+                // Portrait keeps the themed, inset layout so the clock / battery stay readable.
+                WindowCompat.setDecorFitsSystemWindows(window, true)
+                window.statusBarColor = colors.background.toArgb()
+                window.navigationBarColor = colors.background.toArgb()
+            }
             val controller = WindowInsetsControllerCompat(window, window.decorView)
-            controller.show(WindowInsetsCompat.Type.systemBars())
+            val hideStatusBar = (activity as? MainActivity)?.isStatusBarHidden == true
+            if (hideStatusBar) controller.hide(WindowInsetsCompat.Type.statusBars())
+            else controller.show(WindowInsetsCompat.Type.statusBars())
+            controller.show(WindowInsetsCompat.Type.navigationBars())
             controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
             val light = theme == WinlatorThemeType.WHITE
             controller.isAppearanceLightStatusBars = light

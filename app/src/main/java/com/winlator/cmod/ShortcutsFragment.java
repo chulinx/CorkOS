@@ -4,6 +4,8 @@ import static androidx.core.content.ContextCompat.getSystemService;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.PendingIntent;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -84,6 +86,17 @@ import java.util.concurrent.Executors;
 
 public class ShortcutsFragment extends Fragment {
     private static final String TAG = "ShortcutsFragment";
+
+    /**
+     * Set from {@link ShortcutBroadcastReceiver} when the launcher confirms a pin request. Used to
+     * detect launchers whose pin confirmation never completes (see addShortcutToScreen).
+     */
+    private static final java.util.concurrent.atomic.AtomicBoolean PIN_CONFIRMED =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
+
+    public static void onPinConfirmed() {
+        PIN_CONFIRMED.set(true);
+    }
     private static final String GRID_DEFAULT_MIGRATION = "enhanced_library_grid_default_v2";
     private static final int MENU_VIEW_MODE = 1;
     private static final int MENU_SEARCH = 2;
@@ -636,7 +649,9 @@ public class ShortcutsFragment extends Fragment {
             builder.show();
         }
         else if (LibraryComposeHost.ACTION_HOME.equals(action)) {
+            Log.d(TAG, "ACTION_HOME for " + shortcut.name + " uuid='" + shortcut.getExtra("uuid") + "'");
             if (shortcut.getExtra("uuid").equals("")) shortcut.genUUID();
+            Log.d(TAG, "ACTION_HOME resolved uuid='" + shortcut.getExtra("uuid") + "'");
             addShortcutToScreen(shortcut);
         }
         else if (LibraryComposeHost.ACTION_EXPORT.equals(action)) {
@@ -685,52 +700,129 @@ public class ShortcutsFragment extends Fragment {
         } catch (IOException ignored) {}
     }
 
-    private ShortcutInfo buildScreenShortCut(String shortLabel, String longLabel, int containerId, String shortcutPath, Icon icon, String uuid) {
+    /**
+     * The intent a home-screen shortcut launches.  Every extra is a String on purpose: launchers
+     * that persist a pinned shortcut (MIUI among them) keep only String extras, so an int or
+     * boolean extra is dropped and the shortcut would open with "container id 0".
+     * XServerDisplayActivity.readContainerIdFromIntent() accepts the int form as well.
+     */
+    private Intent buildShortcutLaunchIntent(int containerId, String shortcutPath, String shortLabel) {
         Intent intent = new Intent(getActivity(), XServerDisplayActivity.class);
         intent.setAction(Intent.ACTION_VIEW);
-        intent.putExtra("container_id", containerId);
+        intent.putExtra("container_id", String.valueOf(containerId));
         intent.putExtra("shortcut_path", shortcutPath);
+        intent.putExtra("shortcut_name", shortLabel);
         // Marks a game launched straight from an Android home-screen shortcut, so that on exit we
         // can send the user back to the launcher instead of restarting into the app.
-        // NOTE: use a String extra, not a boolean — some launchers/Android versions drop custom
-        // boolean extras when persisting a pinned shortcut's intent, but String extras survive
-        // (shortcut_path is itself a String extra and is preserved).
         intent.putExtra("launch_source", "shortcut");
+        return intent;
+    }
+
+    private ShortcutInfo buildScreenShortCut(String shortLabel, String longLabel, int containerId, String shortcutPath, Icon icon, String uuid) {
+        Intent intent = buildShortcutLaunchIntent(containerId, shortcutPath, shortLabel);
         return new ShortcutInfo.Builder(getActivity(), uuid)
                 .setShortLabel(shortLabel)
                 .setLongLabel(longLabel)
                 .setIcon(icon)
+                // The owning activity must be the app's LAUNCHER activity (MainActivity), not the
+                // activity the shortcut actually opens.  Launchers key a shortcut's app grouping on
+                // this, and MIUI's launcher silently drops shortcuts whose owner is not the launcher
+                // activity -- which is why neither the pin confirmation nor the long-press menu
+                // showed anything.  The launch target stays in setIntent() below.
+                .setActivity(new ComponentName(getActivity(), MainActivity.class))
                 .setIntent(intent)
                 .build();
     }
 
     private void addShortcutToScreen(Shortcut shortcut) {
         ShortcutManager shortcutManager = getSystemService(requireContext(), ShortcutManager.class);
-        // Several launchers (MIUI's among them) do not implement pin requests. The old code just
-        // fell through in that case, so tapping "add to home screen" looked like it did nothing.
-        if (shortcutManager == null || !shortcutManager.isRequestPinShortcutSupported()) {
-            Toast.makeText(requireContext(), R.string.add_to_home_screen_unsupported,
-                    Toast.LENGTH_LONG).show();
-            return;
-        }
+        boolean pinSupported = shortcutManager != null && shortcutManager.isRequestPinShortcutSupported();
+        Log.d(TAG, "addShortcutToScreen: manager=" + (shortcutManager != null)
+                + " pinSupported=" + pinSupported);
+
         File iconDir = getImagesDir(false);
         File imgFile = new File(iconDir, FileUtils.getBasename(shortcut.file.getPath()) + ".png");
         Bitmap bmp = imgFile.exists() ? BitmapFactory.decodeFile(imgFile.getPath()) : shortcut.icon;
         if (bmp == null) bmp = BitmapFactory.decodeResource(getResources(), R.drawable.icon_wine);
+        final Bitmap iconBitmap = bmp;
+
+        // NOTE: the legacy INSTALL_SHORTCUT broadcast is a dead end on modern Android --
+        // ActivityManager rejects it outright ("no longer supported. It will not be delivered"),
+        // even though MIUI's launcher still declares a receiver for it.  requestPinShortcut() is
+        // the only supported route.
+        // Several launchers do not implement pin requests. The old code just fell through in that
+        // case, so tapping "add to home screen" looked like it did nothing.
+        if (!pinSupported) {
+            Toast.makeText(requireContext(), R.string.add_to_home_screen_unsupported,
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
 
         try {
-            shortcutManager.requestPinShortcut(buildScreenShortCut(shortcut.name, shortcut.name,
-                    shortcut.container.id, shortcut.file.getPath(), Icon.createWithBitmap(bmp),
-                    shortcut.getExtra("uuid")), null);
-            // The launcher shows its own confirm dialog, but some ROMs suppress it, so give the
-            // user something immediate either way.
-            Toast.makeText(requireContext(), R.string.add_to_home_screen_requested,
-                    Toast.LENGTH_SHORT).show();
+            // A callback that only fires once the launcher has really pinned the shortcut; it makes
+            // "the request went out" distinguishable from "the icon is on the home screen".
+            Intent callback = new Intent(ShortcutBroadcastReceiver.ACTION_PIN_RESULT)
+                    .setPackage(requireContext().getPackageName());
+            PendingIntent callbackIntent = PendingIntent.getBroadcast(requireContext(), 0, callback,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            boolean requested = shortcutManager.requestPinShortcut(buildScreenShortCut(shortcut.name,
+                    shortcut.name, shortcut.container.id, shortcut.file.getPath(),
+                    Icon.createWithBitmap(bmp), shortcut.getExtra("uuid")),
+                    callbackIntent != null ? callbackIntent.getIntentSender() : null);
+            Log.d(TAG, "requestPinShortcut returned " + requested);
+            // No immediate toast: "confirm in the dialog" is wrong on ROMs whose confirm page never
+            // renders, which is exactly when the fallback below kicks in.  The user is told what to
+            // do once we know which of the two paths actually happened.
+
+            // Some ROMs (MIUI OS4.0 here) open their pin confirmation with an empty surface and
+            // close it without pinning anything, so the callback never fires.  Fall back to a
+            // dynamic shortcut, which the user can drag out of the app's long-press menu.
+            PIN_CONFIRMED.set(false);
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                if (PIN_CONFIRMED.get()) return;
+                Log.w(TAG, "pin was not confirmed by the launcher; publishing a dynamic shortcut");
+                publishDynamicShortcut(shortcut, iconBitmap);
+                Toast.makeText(requireContext(),
+                        getString(R.string.add_to_home_screen_long_press_hint,
+                                getString(R.string.app_name)),
+                        Toast.LENGTH_LONG).show();
+            }, 1500);
         } catch (Exception e) {
+            Log.e(TAG, "requestPinShortcut threw", e);
             Toast.makeText(requireContext(), R.string.add_to_home_screen_failed,
                     Toast.LENGTH_LONG).show();
         }
     }
+
+    /**
+     * Publishes the game as a dynamic shortcut so it shows up when the user long-presses the
+     * CorkOS icon, from where it can be dragged onto the home screen.  This does not depend on the
+     * launcher's pin confirmation at all.
+     */
+    private void publishDynamicShortcut(Shortcut shortcut, Bitmap icon) {
+        ShortcutManager shortcutManager = getSystemService(requireContext(), ShortcutManager.class);
+        if (shortcutManager == null) return;
+        try {
+            ShortcutInfo info = buildScreenShortCut(shortcut.name, shortcut.name,
+                    shortcut.container.id, shortcut.file.getPath(),
+                    Icon.createWithBitmap(icon), shortcut.getExtra("uuid"));
+            ArrayList<ShortcutInfo> list = new ArrayList<>(shortcutManager.getDynamicShortcuts());
+            for (int i = 0; i < list.size(); i++) {
+                if (list.get(i).getId().equals(info.getId())) {
+                    list.remove(i);
+                    break;
+                }
+            }
+            list.add(0, info);
+            int max = shortcutManager.getMaxShortcutCountPerActivity();
+            if (max > 0 && list.size() > max) list = new ArrayList<>(list.subList(0, max));
+            shortcutManager.setDynamicShortcuts(list);
+            Log.d(TAG, "published dynamic shortcut for " + shortcut.name);
+        } catch (Exception e) {
+            Log.e(TAG, "failed to publish dynamic shortcut", e);
+        }
+    }
+
 
     public static void disableShortcutOnScreen(Context context, Shortcut shortcut) {
         ShortcutManager shortcutManager = getSystemService(context, ShortcutManager.class);

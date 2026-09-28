@@ -107,9 +107,24 @@
             android:screenOrientation="sensor"
             android:exported="false" />
 
+        <!-- Legacy "create shortcut" contract: the launcher starts this, the user picks a game, and
+             the launcher places the shortcut itself.  Used because MIUI OS4.0's pinned-shortcut
+             confirmation renders nothing, which makes requestPinShortcut() a dead end there. -->
+        <activity
+            android:name="com.winlator.cmod.CreateShortcutActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:theme="@style/AppTheme">
+            <intent-filter>
+                <action android:name="android.intent.action.CREATE_SHORTCUT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <receiver android:name=".ShortcutBroadcastReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="com.winlator.cmod.SHORTCUT_ADDED" />
+                <action android:name="com.winlator.cmod.PIN_SHORTCUT_RESULT" />
             </intent-filter>
         </receiver>
 

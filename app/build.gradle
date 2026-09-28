@@ -192,7 +192,14 @@ dependencies {
     implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
     implementation 'com.squareup.okhttp3:okhttp:4.9.3'
     implementation 'com.google.code.gson:gson:2.8.8'
-    implementation 'org.conscrypt:conscrypt-android:2.5.2'
+    // Removed: org.conscrypt:conscrypt-android:2.5.2
+    //   Nothing in this app references Conscrypt (no Conscrypt imports, no Security provider is
+    //   installed), so its native library was never loaded -- but it was still packaged, and it is
+    //   the one library not built for 16 KB pages (its libconscrypt_jni.so has 4 KB PT_LOAD
+    //   alignment).  On Android 15+ devices with 16 KB pages that makes the system show the
+    //   "app is not 16 KB aligned" compatibility warning on every launch.  Dropping the unused
+    //   dependency removes the warning and trims the APK.  OkHttp/Retrofit fall back to the
+    //   platform TLS provider automatically.  Re-add only if something starts using Conscrypt.
     implementation 'org.bouncycastle:bcprov-jdk15on:1.68'
     implementation 'org.openjsse:openjsse:1.1.7'
     implementation 'androidx.core:core:1.0.1'
