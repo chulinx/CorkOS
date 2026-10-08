@@ -137,15 +137,18 @@
         <item name="android:popupBackground">@drawable/dialog_background_dark_blue</item>
     </style>
 
-    <style name="ContentDialog" parent="@android:style/Theme.Dialog">
+    <!-- Dialog chrome, picked by ContentDialog.getDialogStyle() from the UI theme.  The parent has
+         to be a Light dialog theme for the light UI theme: the framework resolves default widget
+         colours (list rows, edit text) against this theme, and Theme.Dialog is dark. -->
+    <style name="ContentDialog" parent="@android:style/Theme.DeviceDefault.Light.Dialog">
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
     </style>
 
-
-
-    <style name="ContentDialog.Dark" parent="ContentDialog">
+    <style name="ContentDialog.Dark" parent="@android:style/Theme.Dialog">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
     </style>
 

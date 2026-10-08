@@ -70,6 +70,7 @@ import com.winlator.cmod.fexcore.FEXCoreManager;
 import com.winlator.cmod.fexcore.FEXCorePreset;
 import com.winlator.cmod.fexcore.FEXCorePresetManager;
 import com.winlator.cmod.midi.MidiManager;
+import com.winlator.cmod.ui.theme.WinlatorLegacyTheme;
 import com.winlator.cmod.widget.CPUListView;
 import com.winlator.cmod.widget.ColorPickerView;
 import com.winlator.cmod.widget.EnvVarsView;
@@ -365,7 +366,8 @@ public class ContainerDetailFragment extends Fragment implements DXVKConfigDialo
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
         final View view = inflater.inflate(R.layout.container_detail_fragment, root, false);
 
-        isDarkMode = preferences.getBoolean("dark_mode", true);
+        // Follow the real UI theme, not the legacy "dark_mode" preference (see ContentDialog).
+        isDarkMode = !WinlatorLegacyTheme.isLight(context);
 
         applyDynamicStyles(view, isDarkMode);
         styleContainerSectionLabels(view);

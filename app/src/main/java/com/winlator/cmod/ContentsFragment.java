@@ -41,6 +41,7 @@ import com.winlator.cmod.core.AppUtils;
 import com.winlator.cmod.core.FileUtils;
 import com.winlator.cmod.core.PreloaderDialog;
 import com.winlator.cmod.core.DownloadProgressDialog;
+import com.winlator.cmod.ui.theme.WinlatorLegacyTheme;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -65,9 +66,8 @@ public class ContentsFragment extends Fragment {
         manager.syncContents();
         sp = PreferenceManager.getDefaultSharedPreferences(getActivity());
 
-        // Initialize isDarkMode based on shared preferences or theme
-        isDarkMode = PreferenceManager.getDefaultSharedPreferences(getContext())
-                .getBoolean("dark_mode", false);
+        // Follow the real UI theme, not the legacy "dark_mode" preference (see ContentDialog).
+        isDarkMode = !WinlatorLegacyTheme.isLight(requireContext());
     }
 
     @Override

@@ -97,6 +97,7 @@ import com.winlator.cmod.widget.SeekBar;
 import com.winlator.cmod.widget.WinlatorHUD;
 import com.winlator.cmod.widget.InputControlsView;
 import com.winlator.cmod.widget.LogView;
+import com.winlator.cmod.ui.theme.WinlatorLegacyTheme;
 import com.winlator.cmod.widget.MagnifierView;
 import com.winlator.cmod.widget.TouchpadView;
 import com.winlator.cmod.widget.XServerRendererView;
@@ -367,7 +368,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         cursorLock = preferences.getBoolean("cursor_lock", true);
 
-        isDarkMode = preferences.getBoolean("dark_mode", false);
+        // Follow the real UI theme, not the legacy "dark_mode" preference (see ContentDialog).
+        isDarkMode = !WinlatorLegacyTheme.isLight(this);
 
         boolean isOpenWithAndroidBrowser = preferences.getBoolean("open_with_android_browser", false);
         boolean isShareAndroidClipboard = preferences.getBoolean("share_android_clipboard", false);

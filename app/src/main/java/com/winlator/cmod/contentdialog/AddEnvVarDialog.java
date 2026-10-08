@@ -1,15 +1,13 @@
 package com.winlator.cmod.contentdialog;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.view.Menu;
 import android.widget.EditText;
 import android.widget.PopupMenu;
 
-import androidx.preference.PreferenceManager;
-
 import com.winlator.cmod.R;
+import com.winlator.cmod.ui.theme.WinlatorLegacyTheme;
 import com.winlator.cmod.widget.EnvVarsView;
 
 public class AddEnvVarDialog extends ContentDialog {
@@ -18,8 +16,8 @@ public class AddEnvVarDialog extends ContentDialog {
         final EditText etName = findViewById(R.id.ETName);
         final EditText etValue = findViewById(R.id.ETValue);
 
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        boolean isDarkMode = prefs.getBoolean("dark_mode", false);
+        // Follow the real UI theme, not the legacy "dark_mode" preference (see ContentDialog).
+        boolean isDarkMode = !WinlatorLegacyTheme.isLight(context);
         applyDarkThemeToEditText(etName, isDarkMode);
         applyDarkThemeToEditText(etValue, isDarkMode);
 

@@ -2,12 +2,13 @@ package com.winlator.cmod.contentdialog;
 
 import android.app.Dialog;
 import android.content.Context;
-import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.util.SparseBooleanArray;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -17,12 +18,12 @@ import android.widget.ListView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.preference.PreferenceManager;
 
 import com.winlator.cmod.R;
 import com.winlator.cmod.core.AppUtils;
 import com.winlator.cmod.core.Callback;
 import com.winlator.cmod.core.UnitUtils;
+import com.winlator.cmod.ui.theme.WinlatorLegacyTheme;
 
 import java.util.ArrayList;
 
@@ -39,17 +40,26 @@ public class ContentDialog extends Dialog {
 
     private View inflatedLayout;
 
+    /**
+     * The dialog's light/dark look follows the UI theme the user actually picked
+     * ({@code winlator_ui_theme}), not the legacy {@code dark_mode} preference.  That preference is
+     * a leftover from the pre-theme-picker build: its checkbox is hidden and MainActivity forces it
+     * to true on first run, so reading it made every dialog come out dark no matter which theme was
+     * selected -- a black card on the light theme.
+     */
+    private static boolean isLightTheme(Context context) {
+        return WinlatorLegacyTheme.isLight(context);
+    }
+
     private static int getDialogStyle(Context context) {
-        return PreferenceManager.getDefaultSharedPreferences(context).getBoolean("dark_mode", true) ? R.style.ContentDialog_Dark : R.style.ContentDialog;
+        return isLightTheme(context) ? R.style.ContentDialog : R.style.ContentDialog_Dark;
     }
 
     public ContentDialog(@NonNull Context context, int layoutResId) {
         super(context, getDialogStyle(context));
         contentView = LayoutInflater.from(context).inflate(R.layout.content_dialog, null);
 
-
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
-        isDarkMode = sharedPreferences.getBoolean("dark_mode", true);
+        isDarkMode = !isLightTheme(context);
 
         contentView.setBackgroundResource(isDarkMode ? R.drawable.dialog_background_dark_blue : R.drawable.content_dialog_background);
 
@@ -76,6 +86,42 @@ public class ContentDialog extends Dialog {
         });
 
         setContentView(contentView);
+
+        // Our layouts are inflated with the Activity context, so their TextViews take the colour
+        // from @style/TextView -- which hardcodes white.  That was fine while every dialog was dark,
+        // but on the light theme it means white text on the light card.  Repaint the views that
+        // still carry that default and leave the colours a layout set on purpose alone.
+        int onSurface = WinlatorLegacyTheme.onSurface(context);
+        ((TextView) contentView.findViewById(R.id.TVTitle)).setTextColor(onSurface);
+        ((TextView) contentView.findViewById(R.id.TVMessage)).setTextColor(onSurface);
+        applyThemeTextColor(contentView, onSurface);
+    }
+
+    private static void applyThemeTextColor(View root, int color) {
+        if (root instanceof TextView) {
+            ColorStateList current = ((TextView) root).getTextColors();
+            if (current == null || current.getDefaultColor() == Color.WHITE)
+                ((TextView) root).setTextColor(color);
+            return;
+        }
+        if (root instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) root;
+            for (int i = 0; i < group.getChildCount(); i++)
+                applyThemeTextColor(group.getChildAt(i), color);
+        }
+    }
+
+    /**
+     * List rows are inflated by the adapter, so the constructor's pass does not reach them.  Build
+     * the adapter from the dialog's own context so the framework resolves their default colours
+     * against the dialog theme instead of the (dark) Activity theme, and use a row layout that
+     * suits the theme -- {@code dialog_list_item_amoled} is an explicit black chip.
+     */
+    private static ArrayAdapter<String> themedAdapter(Context dialogContext,
+                                                      int lightLayout, int darkLayout,
+                                                      String[] items) {
+        return new ArrayAdapter<>(dialogContext,
+                WinlatorLegacyTheme.isLight(dialogContext) ? lightLayout : darkLayout, items);
     }
 
     public View getInflatedLayout() {
@@ -184,9 +230,7 @@ public class ContentDialog extends Dialog {
 
         final EditText editText = dialog.findViewById(R.id.EditText);
 
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
-        boolean isDarkMode = sharedPreferences.getBoolean("dark_mode", true);
-        applyDarkThemeToEditText(editText, isDarkMode);
+        applyDarkThemeToEditText(editText, !isLightTheme(context));
 
         editText.setHint(R.string.untitled);
         if (defaultText != null) editText.setText(defaultText);
@@ -219,7 +263,9 @@ public class ContentDialog extends Dialog {
         final ListView listView = dialog.findViewById(R.id.ListView);
         listView.getLayoutParams().width = AppUtils.getPreferredDialogWidth(context);
         listView.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE);
-        listView.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_list_item_multiple_choice, items));
+        listView.setAdapter(themedAdapter(dialog.getContext(),
+                android.R.layout.simple_list_item_multiple_choice,
+                android.R.layout.simple_list_item_multiple_choice, items));
         listView.setVisibility(View.VISIBLE);
 
         dialog.setTitle(titleResId);
@@ -245,7 +291,9 @@ public class ContentDialog extends Dialog {
         layoutParams.height = (int)UnitUtils.dpToPx(Math.min(items.length, 5) * 48);
         layoutParams.weight = 0;
         listView.setChoiceMode(ListView.CHOICE_MODE_NONE);
-        listView.setAdapter(new ArrayAdapter<>(context, R.layout.dialog_list_item_amoled, items));
+        listView.setAdapter(themedAdapter(dialog.getContext(),
+                android.R.layout.simple_list_item_1,
+                R.layout.dialog_list_item_amoled, items));
         listView.setVisibility(View.VISIBLE);
         listView.setOnItemClickListener((parent, view, position, id) -> {
             callback.call(position);

@@ -2,7 +2,6 @@ package com.winlator.cmod.contentdialog;
 
 import android.graphics.drawable.Icon;
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
@@ -52,6 +51,7 @@ import com.winlator.cmod.fexcore.FEXCorePresetManager;
 import com.winlator.cmod.inputcontrols.ControlsProfile;
 import com.winlator.cmod.inputcontrols.InputControlsManager;
 import com.winlator.cmod.midi.MidiManager;
+import com.winlator.cmod.ui.theme.WinlatorLegacyTheme;
 import com.winlator.cmod.widget.CPUListView;
 import com.winlator.cmod.widget.EnvVarsView;
 import com.winlator.cmod.winhandler.WinHandler;
@@ -97,8 +97,8 @@ public class ShortcutSettingsDialog extends ContentDialog implements DXVKConfigD
         scrollParams.height = (int)(AppUtils.getScreenHeight() * 0.76f);
         scrollView.setLayoutParams(scrollParams);
 
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        boolean isDarkMode = prefs.getBoolean("dark_mode", false);
+        // Follow the real UI theme, not the legacy "dark_mode" preference (see ContentDialog).
+        boolean isDarkMode = !WinlatorLegacyTheme.isLight(context);
 
         applyDynamicStyles(findViewById(R.id.LLContent), isDarkMode);
         tvGraphicsDriverVersion = findViewById(R.id.TVGraphicsDriverVersion);
@@ -707,8 +707,8 @@ public class ShortcutSettingsDialog extends ContentDialog implements DXVKConfigD
         final View view = getContentView();
         final Context context = view.getContext();
         final EnvVarsView envVarsView = view.findViewById(R.id.EnvVarsView);
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        boolean isDarkMode = prefs.getBoolean("dark_mode", false);
+        // Follow the real UI theme, not the legacy "dark_mode" preference (see ContentDialog).
+        boolean isDarkMode = !WinlatorLegacyTheme.isLight(context);
         envVarsView.setDarkMode(isDarkMode);
         envVarsView.setEnvVars(new EnvVars(shortcut.getExtra("envVars")));
         view.findViewById(R.id.BTAddEnvVar).setOnClickListener((v) ->

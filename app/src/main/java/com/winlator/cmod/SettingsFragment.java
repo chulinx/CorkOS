@@ -60,6 +60,7 @@ import com.winlator.cmod.inputcontrols.ExternalController;
 import com.winlator.cmod.midi.MidiManager;
 import com.winlator.cmod.widget.InputControlsView;
 import com.winlator.cmod.xenvironment.ImageFsInstaller;
+import com.winlator.cmod.ui.theme.WinlatorLegacyTheme;
 import com.winlator.cmod.ui.settings.SettingChoice;
 import com.winlator.cmod.ui.settings.SettingsCallbacks;
 import com.winlator.cmod.ui.settings.SettingsComposeHost;
@@ -155,8 +156,8 @@ public class SettingsFragment extends Fragment {
 
         View view = inflater.inflate(R.layout.settings_fragment, container, false);
 
-        // Check for Dark Mode preference
-        isDarkMode = preferences.getBoolean("dark_mode", true);
+        // Follow the real UI theme, not the legacy "dark_mode" preference (see ContentDialog).
+        isDarkMode = !WinlatorLegacyTheme.isLight(context);
         // Apply dynamic styles
         applyDynamicStyles(view, isDarkMode);
 

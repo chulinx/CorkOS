@@ -57,6 +57,7 @@ import com.winlator.cmod.core.PreloaderDialog;
 import com.winlator.cmod.container.ContainerManager;
 import com.winlator.cmod.container.Shortcut;
 import com.winlator.cmod.core.WineThemeManager;
+import com.winlator.cmod.ui.theme.WinlatorLegacyTheme;
 import com.winlator.cmod.xenvironment.ImageFsInstaller;
 import com.winlator.cmod.services.NotificationService;
 
@@ -110,13 +111,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     protected void onCreate(Bundle savedInstanceState) {
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
 
-        // Persist the default value on first run so all other components
-        // (dialogs, fragments) read the correct value instead of their own default
-        if (!sharedPreferences.contains("dark_mode")) {
-            sharedPreferences.edit().putBoolean("dark_mode", true).apply();
-        }
-
-        isDarkMode = sharedPreferences.getBoolean("dark_mode", true);
+        // The Activity theme follows the theme the user picked in Settings (winlator_ui_theme).
+        // It used to read the legacy "dark_mode" preference, which is only ever written on first
+        // run -- so anyone who switched to the light theme still got AppTheme_Dark here.  That is
+        // what made every dialog show light text, and left the legacy views dark, on a light UI.
+        isDarkMode = !WinlatorLegacyTheme.isLight(this);
 
         if (isDarkMode) {
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
