@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Night counterparts of the ContentDialog button labels.  See values/colors.xml. -->
+<resources>
+    <color name="dialog_button_label">#F4F4F6</color>
+    <color name="dialog_button_label_on_accent">#FFFFFF</color>
+</resources>

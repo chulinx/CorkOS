@@ -152,6 +152,20 @@
         <item name="android:windowBackground">@android:color/transparent</item>
     </style>
 
+    <!-- Action buttons inside ContentDialog.  Their own component rather than @style/ButtonNeutral,
+         which is pinned to the dark in-game palette and shared with the legacy screens.  Both the
+         drawables and the label colours carry a values-night variant, so one style serves both
+         themes and the layout needs no per-theme branching. -->
+    <style name="ContentDialogButton" parent="BaseButton">
+        <item name="android:background">@drawable/dialog_button_neutral</item>
+        <item name="android:textColor">@color/dialog_button_label</item>
+    </style>
+
+    <style name="ContentDialogButton.Confirm" parent="ContentDialogButton">
+        <item name="android:background">@drawable/dialog_button_confirm</item>
+        <item name="android:textColor">@color/dialog_button_label_on_accent</item>
+    </style>
+
     <!-- EditText Styles -->
     <style name="EditText">
         <item name="android:layout_width">match_parent</item>

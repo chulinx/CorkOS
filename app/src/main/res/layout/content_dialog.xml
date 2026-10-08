@@ -4,7 +4,10 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="14dp"
+    android:paddingStart="22dp"
+    android:paddingEnd="22dp"
+    android:paddingTop="20dp"
+    android:paddingBottom="18dp"
     android:background="@drawable/ui_enhanced_card">
 
     <LinearLayout
@@ -28,13 +31,16 @@
                 android:layout_marginRight="8dp"
                 android:visibility="gone" />
 
+            <!-- Resolved against the dialog theme (see ContentDialog), so these follow the UI
+                 theme instead of the Activity's hardcoded white. -->
             <TextView
                 android:id="@+id/TVTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@color/colorAccent"
+                android:textColor="?android:attr/textColorPrimary"
                 android:textStyle="bold"
-                android:textSize="18sp" />
+                android:textSize="18sp"
+                android:layout_marginBottom="2dp" />
         </LinearLayout>
 
         <View style="@style/HorizontalLine" />
@@ -44,8 +50,9 @@
         android:id="@+id/TVMessage"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:textColor="?android:attr/textColorPrimary"
         android:textSize="16sp"
-        android:layout_marginBottom="8dp"
+        android:layout_marginBottom="12dp"
         android:visibility="gone" />
 
     <EditText
@@ -87,7 +94,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textColor="@color/colorAccent"
+                android:textColor="?android:attr/textColorPrimary"
                 android:textStyle="bold"
                 android:visibility="gone" />
 
@@ -108,17 +115,19 @@
                     android:id="@id/BTReset"
                     android:visibility="gone"
                     android:text="@string/reset"
-                    style="@style/ButtonNeutral" />
+                    style="@style/ContentDialogButton" />
 
                 <Button
-                    style="@style/ButtonNeutral"
+                    style="@style/ContentDialogButton"
                     android:layout_weight="1"
+                    android:layout_marginStart="10dp"
                     android:text="@string/cancel"
                     android:id="@+id/BTCancel" />
 
                 <Button
-                    style="@style/ButtonNeutral"
+                    style="@style/ContentDialogButton.Confirm"
                     android:layout_weight="1"
+                    android:layout_marginStart="10dp"
                     android:text="@string/ok"
                     android:id="@+id/BTConfirm" />
             </LinearLayout>

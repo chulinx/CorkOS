@@ -2,13 +2,11 @@ package com.winlator.cmod.contentdialog;
 
 import android.app.Dialog;
 import android.content.Context;
-import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.util.SparseBooleanArray;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -57,7 +55,14 @@ public class ContentDialog extends Dialog {
 
     public ContentDialog(@NonNull Context context, int layoutResId) {
         super(context, getDialogStyle(context));
-        contentView = LayoutInflater.from(context).inflate(R.layout.content_dialog, null);
+
+        // Inflate against the dialog's own theme, not the Activity's.  Everything the layouts
+        // resolve by theme attribute -- ?android:textColorPrimary, ?android:textViewStyle, the
+        // button styles -- then follows the theme the dialog picked above.  Inflating with the
+        // Activity context is what used to force white text onto the light card, because the
+        // Activity theme is dark and its @style/TextView hardcodes #ffffff.
+        LayoutInflater inflater = LayoutInflater.from(getContext());
+        contentView = inflater.inflate(R.layout.content_dialog, null);
 
         isDarkMode = !isLightTheme(context);
 
@@ -69,7 +74,7 @@ public class ContentDialog extends Dialog {
         if (layoutResId > 0) {
             FrameLayout frameLayout = contentView.findViewById(R.id.FrameLayout);
             frameLayout.setVisibility(View.VISIBLE);
-            View view = LayoutInflater.from(context).inflate(layoutResId, frameLayout, false);
+            View view = inflater.inflate(layoutResId, frameLayout, false);
             frameLayout.addView(view);
         }
 
@@ -86,29 +91,6 @@ public class ContentDialog extends Dialog {
         });
 
         setContentView(contentView);
-
-        // Our layouts are inflated with the Activity context, so their TextViews take the colour
-        // from @style/TextView -- which hardcodes white.  That was fine while every dialog was dark,
-        // but on the light theme it means white text on the light card.  Repaint the views that
-        // still carry that default and leave the colours a layout set on purpose alone.
-        int onSurface = WinlatorLegacyTheme.onSurface(context);
-        ((TextView) contentView.findViewById(R.id.TVTitle)).setTextColor(onSurface);
-        ((TextView) contentView.findViewById(R.id.TVMessage)).setTextColor(onSurface);
-        applyThemeTextColor(contentView, onSurface);
-    }
-
-    private static void applyThemeTextColor(View root, int color) {
-        if (root instanceof TextView) {
-            ColorStateList current = ((TextView) root).getTextColors();
-            if (current == null || current.getDefaultColor() == Color.WHITE)
-                ((TextView) root).setTextColor(color);
-            return;
-        }
-        if (root instanceof ViewGroup) {
-            ViewGroup group = (ViewGroup) root;
-            for (int i = 0; i < group.getChildCount(); i++)
-                applyThemeTextColor(group.getChildAt(i), color);
-        }
     }
 
     /**

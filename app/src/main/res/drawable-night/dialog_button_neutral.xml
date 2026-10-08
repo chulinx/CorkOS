@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark-theme quiet action in ContentDialog.  Same surface as the in-game palette's
+     ui_enhanced_action, kept separate so the dialog can follow the UI theme on its own. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#4A4D56" />
+            <corners android:radius="10dp" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient android:angle="270" android:startColor="#E326282F" android:endColor="#D91C1E24" />
+            <stroke android:width="1dp" android:color="#383B45" />
+            <corners android:radius="10dp" />
+        </shape>
+    </item>
+</selector>

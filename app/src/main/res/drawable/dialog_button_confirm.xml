@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Light-theme primary action in ContentDialog: the same blue CTA the Compose side uses
+     (LocalWinlatorAccent / LightAccent #1F6FEB). -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#1857BE" />
+            <corners android:radius="10dp" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#1F6FEB" />
+            <corners android:radius="10dp" />
+        </shape>
+    </item>
+</selector>
