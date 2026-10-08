@@ -31,4 +31,10 @@
     <attr name="ingameSidebarPrimary" format="color" />
     <attr name="ingameSidebarPrimaryContainer" format="color" />
     <attr name="ingameSidebarOutline" format="color" />
+
+    <!-- Card background for ContentDialog, filled in by each dialog theme so the layout can stay
+         theme-agnostic.  Setting it in the layout rather than from Java matters: a background
+         applied programmatically after inflation overwrites the view's padding with the drawable's
+         own content area, which silently ate the dialog's margins. -->
+    <attr name="contentDialogBackground" format="reference" />
 </resources>

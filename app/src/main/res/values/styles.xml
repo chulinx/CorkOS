@@ -144,12 +144,14 @@
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="contentDialogBackground">@drawable/content_dialog_background</item>
     </style>
 
     <style name="ContentDialog.Dark" parent="@android:style/Theme.Dialog">
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="contentDialogBackground">@drawable/dialog_background_dark_blue</item>
     </style>
 
     <!-- Action buttons inside ContentDialog.  Their own component rather than @style/ButtonNeutral,

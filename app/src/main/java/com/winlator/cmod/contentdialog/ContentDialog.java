@@ -30,8 +30,6 @@ public class ContentDialog extends Dialog {
     private Runnable onCancelCallback;
     private final View contentView;
 
-    private boolean isDarkMode;
-
     public ContentDialog(@NonNull Context context) {
         this(context, 0);
     }
@@ -64,10 +62,9 @@ public class ContentDialog extends Dialog {
         LayoutInflater inflater = LayoutInflater.from(getContext());
         contentView = inflater.inflate(R.layout.content_dialog, null);
 
-        isDarkMode = !isLightTheme(context);
-
-        contentView.setBackgroundResource(isDarkMode ? R.drawable.dialog_background_dark_blue : R.drawable.content_dialog_background);
-
+        // The card background comes from ?attr/contentDialogBackground in the layout, not from here.
+        // Applying it programmatically would overwrite the layout's padding with the 9-patch's own
+        // content area -- which is what silently collapsed the dialog's margins to ~4dp.
         if (getWindow() != null) getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
 
 
