@@ -967,7 +967,7 @@
     <string name="sidebar_fg_auto">跟随屏幕</string>
     <string name="sidebar_fg_off">关闭</string>
     <string name="enable_winlator_logs">捕获 Winlator 日志</string>
-    <string name="add_to_home_screen_long_press_hint">此桌面不支持自动添加快捷方式。可长按 %1$s 图标，在弹出菜单里启动游戏。</string>
+    <string name="add_to_home_screen_long_press_hint">系统没有完成固定。已把它放进长按菜单——长按 %1$s 图标即可看到，再拖到桌面。</string>
     <string name="add_to_home_screen_added">已添加到桌面。</string>
     <string name="sidebar_fg_floor_fps">最低源帧率</string>
     <string name="sidebar_fg_post">后处理锐化</string>
@@ -1039,7 +1039,13 @@
     <string name="sidebar_more_section">其他</string>
 
     <!-- Home-screen shortcut feedback -->
-    <string name="add_to_home_screen_unsupported">当前桌面不支持添加快捷方式，请到桌面手动添加</string>
+    <string name="add_to_home_screen_unsupported">当前桌面不支持自动添加快捷方式，可长按应用图标，从菜单里启动游戏</string>
     <string name="add_to_home_screen_requested">已请求添加，请在弹窗中确认</string>
     <string name="add_to_home_screen_failed">添加桌面快捷方式失败</string>
+    <string name="add_to_home_screen_permission_title">桌面快捷方式权限未开启</string>
+    <string name="add_to_home_screen_permission_message">系统没有授予 %1$s「桌面快捷方式」权限，所以图标放不到桌面上——这跟桌面（启动器）本身无关。\n\n请到「设置 → 应用设置 → 权限管理 → 其他权限 → 桌面快捷方式」里打开，再回来点一次「添加到主屏幕」。</string>
+    <string name="add_to_home_screen_open_settings">去开启</string>
+    <string name="add_to_home_screen_try_anyway">仍然尝试</string>
+    <string name="add_to_home_screen_failed_title">没能放到桌面</string>
+    <string name="add_to_home_screen_failed_message">系统没有完成「添加到桌面」。最常见的原因是系统没有授予 %1$s「桌面快捷方式」权限——这跟桌面（启动器）本身无关；也可能是启动器没有完成固定。\n\n可以点「去开启」检查权限，或者长按应用图标，从菜单里把游戏拖到桌面。</string>
 </resources>

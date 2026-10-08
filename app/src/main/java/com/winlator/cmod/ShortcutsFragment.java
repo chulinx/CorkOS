@@ -26,6 +26,7 @@ import android.view.MenuItem;
 import android.view.SubMenu;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -49,6 +50,7 @@ import com.winlator.cmod.contentdialog.ContentDialog;
 import com.winlator.cmod.ui.shortcut.ShortcutSettingsComposeDialog;
 import com.winlator.cmod.core.ExeIconExtractor;
 import com.winlator.cmod.core.FileUtils;
+import com.winlator.cmod.core.ShortcutPermission;
 import com.winlator.cmod.ui.library.LibraryCallbacks;
 import com.winlator.cmod.ui.library.LibraryComposeBinding;
 import com.winlator.cmod.ui.library.LibraryComposeController;
@@ -744,7 +746,16 @@ public class ShortcutsFragment extends Fragment {
         File imgFile = new File(iconDir, FileUtils.getBasename(shortcut.file.getPath()) + ".png");
         Bitmap bmp = imgFile.exists() ? BitmapFactory.decodeFile(imgFile.getPath()) : shortcut.icon;
         if (bmp == null) bmp = BitmapFactory.decodeResource(getResources(), R.drawable.icon_wine);
-        final Bitmap iconBitmap = bmp;
+
+        // MIUI / HyperOS gate home-screen shortcuts behind a per-app "桌面快捷方式" switch that
+        // they expose as a private AppOps op.  While it is off requestPinShortcut() fails without
+        // saying why -- sometimes even reporting pin as unsupported -- and the launcher ends up
+        // looking broken.  Check the real cause first and say so.
+        if (ShortcutPermission.check(requireContext()) == ShortcutPermission.DENIED) {
+            Log.w(TAG, "home-screen shortcut permission is denied; explaining instead of requesting");
+            showShortcutPermissionDialog(shortcut, bmp, pinSupported, true);
+            return;
+        }
 
         // NOTE: the legacy INSTALL_SHORTCUT broadcast is a dead end on modern Android --
         // ActivityManager rejects it outright ("no longer supported. It will not be delivered"),
@@ -757,6 +768,50 @@ public class ShortcutsFragment extends Fragment {
                     Toast.LENGTH_LONG).show();
             return;
         }
+
+        requestPinShortcut(shortcut, bmp, false);
+    }
+
+    /**
+     * Explains why "add to home screen" did not work, instead of blaming the launcher.
+     *
+     * @param permissionKnown true when the OEM switch was actually read and found to be off; false
+     *                        when the cause could only be inferred, because the lookup goes through
+     *                        a private ROM op and may legitimately be unavailable.
+     */
+    private void showShortcutPermissionDialog(Shortcut shortcut, Bitmap iconBitmap,
+                                              boolean pinSupported, boolean permissionKnown) {
+        ContentDialog dialog = new ContentDialog(requireContext());
+        dialog.setTitle(permissionKnown
+                ? R.string.add_to_home_screen_permission_title
+                : R.string.add_to_home_screen_failed_title);
+        dialog.setMessage(getString(permissionKnown
+                        ? R.string.add_to_home_screen_permission_message
+                        : R.string.add_to_home_screen_failed_message,
+                getString(R.string.app_name)));
+        ((TextView) dialog.findViewById(R.id.BTConfirm))
+                .setText(R.string.add_to_home_screen_open_settings);
+        ((TextView) dialog.findViewById(R.id.BTCancel))
+                .setText(R.string.add_to_home_screen_try_anyway);
+        dialog.setOnConfirmCallback(() -> ShortcutPermission.openPermissionSettings(requireContext()));
+        // Replaces ContentDialog's own cancel handler so we can act on the choice before dismissing.
+        dialog.findViewById(R.id.BTCancel).setOnClickListener(v -> {
+            dialog.dismiss();
+            if (pinSupported) requestPinShortcut(shortcut, iconBitmap, true);
+            else Toast.makeText(requireContext(), R.string.add_to_home_screen_unsupported,
+                    Toast.LENGTH_LONG).show();
+        });
+        dialog.show();
+    }
+
+    /**
+     * @param userOverrodePermission true when the user pressed "try anyway" on the permission
+     *                               dialog, so a second failure does not reopen it in a loop.
+     */
+    private void requestPinShortcut(Shortcut shortcut, Bitmap bmp, boolean userOverrodePermission) {
+        ShortcutManager shortcutManager = getSystemService(requireContext(), ShortcutManager.class);
+        final Bitmap iconBitmap = bmp;
+        if (shortcutManager == null) return;
 
         try {
             // A callback that only fires once the launcher has really pinned the shortcut; it makes
@@ -779,17 +834,41 @@ public class ShortcutsFragment extends Fragment {
             // dynamic shortcut, which the user can drag out of the app's long-press menu.
             PIN_CONFIRMED.set(false);
             new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-                if (PIN_CONFIRMED.get()) return;
+                if (PIN_CONFIRMED.get() || !isAdded()) return;
                 Log.w(TAG, "pin was not confirmed by the launcher; publishing a dynamic shortcut");
                 publishDynamicShortcut(shortcut, iconBitmap);
-                Toast.makeText(requireContext(),
-                        getString(R.string.add_to_home_screen_long_press_hint,
-                                getString(R.string.app_name)),
-                        Toast.LENGTH_LONG).show();
+                reportPinFailure(shortcut, iconBitmap, userOverrodePermission);
             }, 1500);
         } catch (Exception e) {
             Log.e(TAG, "requestPinShortcut threw", e);
-            Toast.makeText(requireContext(), R.string.add_to_home_screen_failed,
+            reportPinFailure(shortcut, bmp, userOverrodePermission);
+        }
+    }
+
+    /**
+     * The pin never happened. Name the real cause: the OEM shortcut permission (the common case on
+     * MIUI / HyperOS) versus a launcher whose confirmation page never completes. Only the latter is
+     * about the launcher.
+     */
+    private void reportPinFailure(Shortcut shortcut, Bitmap iconBitmap, boolean userOverrodePermission) {
+        if (!isAdded()) return;
+        int permission = userOverrodePermission
+                ? ShortcutPermission.GRANTED
+                : ShortcutPermission.check(requireContext());
+
+        if (permission == ShortcutPermission.DENIED) {
+            showShortcutPermissionDialog(shortcut, iconBitmap, true, true);
+        }
+        else if (permission == ShortcutPermission.UNKNOWN && ShortcutPermission.isMiui()) {
+            // No readable op on an MIUI-family ROM: the permission is still the likeliest cause,
+            // and the "could not add" message says so without asserting it.
+            showShortcutPermissionDialog(shortcut, iconBitmap, true, false);
+        }
+        else {
+            // The permission is fine, so this really is the launcher not completing the pin.
+            Toast.makeText(requireContext(),
+                    getString(R.string.add_to_home_screen_long_press_hint,
+                            getString(R.string.app_name)),
                     Toast.LENGTH_LONG).show();
         }
     }

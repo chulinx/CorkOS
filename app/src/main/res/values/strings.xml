@@ -973,7 +973,7 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="sidebar_fg_auto">Auto</string>
     <string name="sidebar_fg_off">Off</string>
     <string name="enable_winlator_logs">Capture Winlator logs</string>
-    <string name="add_to_home_screen_long_press_hint">This launcher cannot pin shortcuts. Long-press the %1$s icon to launch the game from its menu.</string>
+    <string name="add_to_home_screen_long_press_hint">The system did not complete the pin. It is now in the long-press menu — long-press the %1$s icon to drag it onto the home screen.</string>
     <string name="add_to_home_screen_added">Shortcut added to the home screen.</string>
     <string name="sidebar_fg_floor_fps">Min Source FPS</string>
     <string name="sidebar_fg_post">Sharpen Output</string>
@@ -1045,7 +1045,13 @@ E.g. <b>META</b> for <i>META key</i>, \n
     <string name="sidebar_more_section">More</string>
 
     <!-- Home-screen shortcut feedback -->
-    <string name="add_to_home_screen_unsupported">This launcher does not support home-screen shortcuts</string>
+    <string name="add_to_home_screen_unsupported">This launcher cannot pin shortcuts automatically. Long-press the app icon to launch games from its menu</string>
     <string name="add_to_home_screen_requested">Requested — confirm in the dialog</string>
     <string name="add_to_home_screen_failed">Could not add the home-screen shortcut</string>
+    <string name="add_to_home_screen_permission_title">Home screen shortcut permission is off</string>
+    <string name="add_to_home_screen_permission_message">The system has not granted %1$s the \u201chome screen shortcut\u201d permission, so the icon cannot be placed on the home screen — this is not a launcher problem.\n\nOpen Settings → Apps → Permissions → Other permissions → Home screen shortcuts, turn it on, then tap \u201cAdd to Home Screen\u201d again.</string>
+    <string name="add_to_home_screen_open_settings">Open settings</string>
+    <string name="add_to_home_screen_try_anyway">Try anyway</string>
+    <string name="add_to_home_screen_failed_title">Could not place the shortcut</string>
+    <string name="add_to_home_screen_failed_message">The system did not complete \u201cadd to home screen\u201d. The usual reason is that %1$s has not been granted the \u201chome screen shortcut\u201d permission — this is not a launcher problem; it can also mean the launcher never completed the pin.\n\nTap \u201cOpen settings\u201d to check the permission, or long-press the app icon and drag the game out of its menu.</string>
 </resources>
